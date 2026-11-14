@@ -63,8 +63,9 @@ export class SceneDirectorService {
         }
     }
 
-    async createFromAppearanceAndLatestResponse(
+    async createFromAppearanceAndLatestMessages(
         latestAssistantResponse,
+        latestUserMessage,
         characterAppearance,
     ) {
         if (!this.systemPrompt) {
@@ -75,6 +76,7 @@ export class SceneDirectorService {
 
         const rawPrompt = await this.aiClient.generateScenePrompt(
             latestAssistantResponse,
+            latestUserMessage,
             this.systemPrompt,
             characterAppearance,
         );

@@ -19,7 +19,7 @@ Ollama /api/chat
     ↓
 Streamed Telegram reply
     ↓
-Character appearance file + scene from final assistant reply
+Character appearance file + latest assistant reply + latest user message
     ↓
 Unload text model → ComfyUI image → Telegram photo
     ↓
@@ -35,7 +35,7 @@ For each normal text message, the bot:
 5. Sends the request to Ollama with streaming enabled.
 6. Shows a compact model/personality/memory placeholder, then replaces it as soon as the first streamed text chunk arrives and continues throttled edits.
 7. Stores and finishes sending the final conversation locally.
-8. If the Telegram account has automatic images enabled, asks the same text model to direct one still image. The matching file under `personalities/appearances/` supplies character appearance; the final assistant reply supplies only the scene. The personality system prompt is not included.
+8. If the Telegram account has automatic images enabled, asks the same text model to direct one still image. The matching file under `personalities/appearances/` supplies stable character appearance; the final assistant reply supplies the immediate narrative moment; and the latest user message supplies the requested scene and changes. Explicit user-request details take precedence over conflicting assistant-reply details. The personality system prompt and earlier history are not included.
 9. Stores the scene direction in the session log and the user's private image record without adding it to future conversation context.
 10. Unloads the text model, sends a small image-building status, runs ComfyUI with the complete direction, and sends the result with the direction inside an expandable caption and a Regenerate button. Only the displayed caption is shortened when Telegram's fixed caption limit requires it.
 11. Deletes the status, unloads the ComfyUI model, and preloads the text model for the next queued message.

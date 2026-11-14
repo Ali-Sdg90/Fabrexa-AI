@@ -452,12 +452,17 @@ ${memoryContext}`
 
     async generateScenePrompt(
         latestAssistantMessage,
+        latestUserMessage,
         directorSystemPrompt,
         characterAppearance = "",
     ) {
-        const source = String(latestAssistantMessage || "").trim();
-        if (!source) {
+        const assistantSource = String(latestAssistantMessage || "").trim();
+        if (!assistantSource) {
             throw new Error("The latest assistant response is empty.");
+        }
+        const userSource = String(latestUserMessage || "").trim();
+        if (!userSource) {
+            throw new Error("The latest user message is empty.");
         }
         if (!String(directorSystemPrompt || "").trim()) {
             throw new Error("The scene-director system prompt is empty.");
@@ -479,7 +484,7 @@ ${appearanceReference || "No stated character appearance reference was provided.
                 { role: "system", content: systemContent },
                 {
                     role: "user",
-                    content: `Build the scene, action, pose, expression, setting, lighting, and composition only from the latest assistant response delimited below. The assistant's character must be the dominant visual subject. Do not use or infer any earlier user message, conversation history, or memory. If the user appears in the response, keep the user secondary and do not invent the user's physical appearance.\n\n<latest_assistant_response>\n${source}\n</latest_assistant_response>\n\nReturn only the finished English positive image prompt.`,
+                    content: `Use the latest user message for the requested scene and changes, and the latest assistant response for the immediately realized moment and its context. When they conflict, follow explicit details in the latest user message. Use no earlier messages, conversation history, or memory. Build one image-model-ready scene with clear action, pose, expression, setting, lighting, and composition. The assistant's character must be the dominant visual subject. If the user appears, keep them secondary and do not invent their physical appearance.\n\n<latest_assistant_response>\n${assistantSource}\n</latest_assistant_response>\n\n<latest_user_message>\n${userSource}\n</latest_user_message>\n\nReturn only the finished English positive image prompt.`,
                 },
             ],
             stream: false,

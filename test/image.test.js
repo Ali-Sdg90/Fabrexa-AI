@@ -33,7 +33,7 @@ const { buildImageCaption, buildRegenerateImageKeyboard } = await import(
 );
 const { parseSessionHistory } = await import("../src/memory/index.js");
 
-test("scene direction separates character appearance from the latest reply scene", async () => {
+test("scene direction separates character appearance and includes both latest messages", async () => {
     let request;
     const client = new AIClient({
         httpClient: {
@@ -46,6 +46,7 @@ test("scene direction separates character appearance from the latest reply scene
 
     const result = await client.generateScenePrompt(
         "LATEST ASSISTANT RESPONSE",
+        "LATEST USER MESSAGE",
         "SCENE DIRECTOR SYSTEM PROMPT",
         "CHARACTER HAS SILVER HAIR AND GREEN EYES",
     );
@@ -70,6 +71,11 @@ test("scene direction separates character appearance from the latest reply scene
     );
     assert.match(request.payload.messages[0].content, /Preserve its stated face/i);
     assert.match(request.payload.messages[1].content, /LATEST ASSISTANT RESPONSE/);
+    assert.match(request.payload.messages[1].content, /LATEST USER MESSAGE/);
+    assert.ok(
+        request.payload.messages[1].content.indexOf("<latest_assistant_response>") <
+            request.payload.messages[1].content.indexOf("<latest_user_message>"),
+    );
     assert.doesNotMatch(request.payload.messages[1].content, /SILVER HAIR/);
     assert.doesNotMatch(request.payload.messages[1].content, /conversation history content/);
 });
@@ -217,7 +223,7 @@ test("per-account image preference defaults on and persists scene direction", as
         assert.equal(stored.imageGenerationEnabled, false);
         assert.equal(
             stored.scenePrompts[0].source,
-            "character_appearance_file_and_latest_reply_scene",
+            "character_appearance_file_and_latest_messages_scene",
         );
         assert.equal(stored.scenePrompts[0].scenePrompt, "cinematic final scene");
         assert.equal(stored.scenePrompts[0].assistantResponse, "The final story reply.");
@@ -238,8 +244,14 @@ test("image pipeline preserves the required model handoff order", async () => {
             },
         },
         sceneDirector: {
-            async createFromAppearanceAndLatestResponse(value, appearance) {
-                events.push(`direct:${value}:${appearance}`);
+            async createFromAppearanceAndLatestMessages(
+                assistantMessage,
+                userMessage,
+                appearance,
+            ) {
+                events.push(
+                    `direct:${assistantMessage}:${userMessage}:${appearance}`,
+                );
                 return "directed prompt";
             },
         },
@@ -257,6 +269,7 @@ test("image pipeline preserves the required model handoff order", async () => {
 
     const result = await pipeline.run({
         latestAssistantResponse: "latest only",
+        latestUserMessage: "user request",
         characterAppearance: "silver hair",
         async onPromptReady(prompt) {
             events.push(`persist:${prompt}`);
@@ -270,7 +283,7 @@ test("image pipeline preserves the required model handoff order", async () => {
     });
 
     assert.deepEqual(events, [
-        "direct:latest only:silver hair",
+        "direct:latest only:user request:silver hair",
         "persist:directed prompt",
         "unload-text",
         "status",
@@ -296,7 +309,7 @@ test("image pipeline restores the text model after image generation fails", asyn
             },
         },
         sceneDirector: {
-            async createFromAppearanceAndLatestResponse() {
+            async createFromAppearanceAndLatestMessages() {
                 return "directed prompt";
             },
         },
@@ -315,6 +328,7 @@ test("image pipeline restores the text model after image generation fails", asyn
     await assert.rejects(
         pipeline.run({
             latestAssistantResponse: "latest only",
+            latestUserMessage: "user request",
             async onPromptReady() {},
             async onGenerationStart() {},
             async onImageReady() {},
@@ -341,7 +355,7 @@ test("image regeneration reuses the stored prompt and performs the full model ha
             },
         },
         sceneDirector: {
-            async createFromAppearanceAndLatestResponse() {
+            async createFromAppearanceAndLatestMessages() {
                 throw new Error("scene director must not run during regeneration");
             },
         },

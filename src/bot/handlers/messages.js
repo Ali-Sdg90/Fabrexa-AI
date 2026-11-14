@@ -181,6 +181,7 @@ async function sendFinalResponse(ctx, processingMessage, response) {
 async function sendAutomaticImage(
     ctx,
     response,
+    userMessage,
     characterAppearance,
     username,
     userId,
@@ -193,6 +194,7 @@ async function sendAutomaticImage(
     try {
         const result = await imagePipeline.run({
             latestAssistantResponse: response,
+            latestUserMessage: userMessage,
             characterAppearance,
             onPromptReady: async (scenePrompt) => {
                 caption = buildImageCaption(scenePrompt);
@@ -363,6 +365,7 @@ async function processConversation({
         const imageResult = await sendAutomaticImage(
             ctx,
             response,
+            userMessage,
             personality.appearance,
             username,
             userId,
