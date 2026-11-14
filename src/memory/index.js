@@ -111,6 +111,23 @@ export async function appendChatMessage(
     await fs.appendFile(sessionPath, entry, "utf-8");
 }
 
+export async function appendChatArtifact(chatId, label, message) {
+    const meta = await loadMeta(chatId);
+    const sessionPath = getSessionPath(chatId, meta.currentSession);
+    const timestamp = new Date()
+        .toISOString()
+        .replace("T", " ")
+        .replace("Z", "");
+    const cleanLabel = String(label || "Artifact").replace(/[:\r\n]/g, " ").trim();
+    const cleanMessage = String(message || "").replace(/\s+/g, " ").trim();
+    if (!cleanMessage) return;
+    await fs.appendFile(
+        sessionPath,
+        `[${timestamp}] Artifact(${cleanLabel}): ${cleanMessage}\n`,
+        "utf-8",
+    );
+}
+
 function normalizeConversation(entries) {
     const normalized = [];
 
@@ -164,6 +181,9 @@ export function parseSessionHistory(
     for (const line of lines) {
         const messageMatch = line.match(/^\[[^\]]+\]\s+([^:]+):\s?(.*)$/);
         if (messageMatch) {
+            if (messageMatch[1].startsWith("Artifact(")) {
+                continue;
+            }
             parsed.push({
                 role: messageMatch[1] === "User" ? "user" : "assistant",
                 content: messageMatch[2],

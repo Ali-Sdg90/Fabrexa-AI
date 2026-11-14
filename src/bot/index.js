@@ -12,8 +12,13 @@ import {
 } from "../config/index.js";
 import { ensureMemoryDirectory } from "../memory/index.js";
 import { startMemoryProcessorScheduler } from "../memory/processor.js";
+import {
+    conversationQueue,
+    initializeImageRuntime,
+} from "../image/runtime.js";
 import { registerCommandHandlers } from "./handlers/commands.js";
 import { registerActionHandlers } from "./handlers/actions.js";
+import { registerImageRegenerationHandler } from "./handlers/imageRegeneration.js";
 import { registerQuickActionHandlers } from "./handlers/quickActions.js";
 import { registerMessageHandler } from "./handlers/messages.js";
 
@@ -22,6 +27,7 @@ const bot = new Telegraf(TELEGRAM_BOT_TOKEN);
 export function createBot() {
     registerCommandHandlers(bot);
     registerActionHandlers(bot);
+    registerImageRegenerationHandler(bot);
     registerQuickActionHandlers(bot);
     registerMessageHandler(bot);
 
@@ -51,7 +57,10 @@ export async function startBot() {
         });
 
         await ensureMemoryDirectory();
-        startMemoryProcessorScheduler();
+        await initializeImageRuntime();
+        startMemoryProcessorScheduler({
+            taskRunner: (task) => conversationQueue.add(task).promise,
+        });
 
         const tokenLength = TELEGRAM_BOT_TOKEN?.length || 0;
 
@@ -74,7 +83,7 @@ export async function startBot() {
             { command: "start", description: "Start Fabrexa" },
         ]);
 
-        await bot.launch();
+        await bot.launch({ allowedUpdates: ["message", "callback_query"] });
     } catch (error) {
         console.error(`💥 Critical error: ${error.message}`);
         if (error.response) {

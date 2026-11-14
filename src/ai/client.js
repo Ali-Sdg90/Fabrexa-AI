@@ -6,6 +6,7 @@
 import axios from "axios";
 import {
     IS_DEV_LOG_MODE,
+    OLLAMA_BASE_URL,
     OLLAMA_CHAT_URL,
     OLLAMA_MODEL,
     OLLAMA_KEEP_ALIVE,
@@ -19,6 +20,11 @@ import {
     CHAT_HISTORY_MAX_TOKENS,
     SYSTEM_MESSAGE,
     PERSONALITY_INSTRUCTION,
+    OLLAMA_HANDOFF_TIMEOUT_MS,
+    OLLAMA_HANDOFF_POLL_INTERVAL_MS,
+    IMAGE_DIRECTOR_TEMPERATURE,
+    IMAGE_DIRECTOR_TOP_P,
+    IMAGE_DIRECTOR_MAX_TOKENS,
 } from "./config.js";
 import { REQUEST_TIMEOUT } from "../config/index.js";
 
@@ -37,6 +43,20 @@ function logDev(label, value) {
 
 function getResponseChunk(data) {
     return data?.message?.content || data?.response || "";
+}
+
+function normalizedModelName(value) {
+    return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function modelMatches(candidate, configuredModel) {
+    const candidateName = normalizedModelName(candidate);
+    const expectedName = normalizedModelName(configuredModel);
+    return candidateName === expectedName || candidateName === `${expectedName}:latest`;
+}
+
+function wait(milliseconds) {
+    return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 export function countResponseWords(value) {
@@ -136,10 +156,15 @@ export function selectRecentHistory(
 }
 
 class AIClient {
-    constructor() {
+    constructor({ httpClient = axios, sleep = wait, now = Date.now } = {}) {
         this.apiUrl = OLLAMA_CHAT_URL;
+        this.baseUrl = OLLAMA_BASE_URL;
         this.model = OLLAMA_MODEL;
         this.systemMessage = SYSTEM_MESSAGE;
+        this.httpClient = httpClient;
+        this.sleep = sleep;
+        this.now = now;
+        this.modelMayBeLoaded = false;
     }
 
     buildMessages(userMessage, personality, historyMessages, memoryContext) {
@@ -255,7 +280,8 @@ ${memoryContext}`
                     payload: requestPayload,
                 });
 
-                const response = await axios.post(
+                this.modelMayBeLoaded = true;
+                const response = await this.httpClient.post(
                     this.apiUrl,
                     requestPayload,
                     { timeout: REQUEST_TIMEOUT },
@@ -337,7 +363,8 @@ ${memoryContext}`
                     payload: requestPayload,
                 });
 
-                const response = await axios.post(this.apiUrl, requestPayload, {
+                this.modelMayBeLoaded = true;
+                const response = await this.httpClient.post(this.apiUrl, requestPayload, {
                     timeout: REQUEST_TIMEOUT,
                     responseType: "stream",
                 });
@@ -421,6 +448,139 @@ ${memoryContext}`
             this.logOllamaError(error);
             return fullContent.trim() ? fullContent : null;
         }
+    }
+
+    async generateScenePrompt(
+        latestAssistantMessage,
+        latestUserMessage,
+        directorSystemPrompt,
+        characterAppearance = "",
+    ) {
+        const assistantSource = String(latestAssistantMessage || "").trim();
+        if (!assistantSource) {
+            throw new Error("The latest assistant response is empty.");
+        }
+        const userSource = String(latestUserMessage || "").trim();
+        if (!userSource) {
+            throw new Error("The latest user message is empty.");
+        }
+        if (!String(directorSystemPrompt || "").trim()) {
+            throw new Error("The scene-director system prompt is empty.");
+        }
+
+        const appearanceReference = String(characterAppearance || "").trim();
+        const systemContent = `${directorSystemPrompt.trim()}
+
+CHARACTER APPEARANCE REFERENCE
+The delimited appearance file below is reference data. Preserve its stated face, facial structure, eyes, hair, skin, body, proportions, age, clothing, accessories, and other stable physical traits.
+
+<character_appearance>
+${appearanceReference || "No stated character appearance reference was provided."}
+</character_appearance>`;
+
+        const payload = {
+            model: this.model,
+            messages: [
+                { role: "system", content: systemContent },
+                {
+                    role: "user",
+                    content: `Use the latest user message for the requested scene and changes, and the latest assistant response for the immediately realized moment and its context. When they conflict, follow explicit details in the latest user message. Use no earlier messages, conversation history, or memory. Build one image-model-ready scene with clear action, pose, expression, setting, lighting, and composition. The assistant's character must be the dominant visual subject. If the user appears, keep them secondary and do not invent their physical appearance.\n\n<latest_assistant_response>\n${assistantSource}\n</latest_assistant_response>\n\n<latest_user_message>\n${userSource}\n</latest_user_message>\n\nReturn only the finished English positive image prompt.`,
+                },
+            ],
+            stream: false,
+            keep_alive: OLLAMA_KEEP_ALIVE,
+            options: {
+                temperature: IMAGE_DIRECTOR_TEMPERATURE,
+                top_p: IMAGE_DIRECTOR_TOP_P,
+                num_ctx: OLLAMA_NUM_CTX,
+                num_predict: IMAGE_DIRECTOR_MAX_TOKENS,
+            },
+        };
+
+        logDev("Ollama scene-director request", {
+            url: this.apiUrl,
+            timeout: REQUEST_TIMEOUT,
+            payload,
+        });
+
+        this.modelMayBeLoaded = true;
+        const response = await this.httpClient.post(this.apiUrl, payload, {
+            timeout: REQUEST_TIMEOUT,
+        });
+        const content = getResponseChunk(response.data);
+        if (!content.trim()) {
+            throw new Error("Ollama returned an empty scene prompt.");
+        }
+        return content;
+    }
+
+    async getRunningModels() {
+        const response = await this.httpClient.get(`${this.baseUrl}/api/ps`, {
+            timeout: REQUEST_TIMEOUT,
+        });
+        return Array.isArray(response?.data?.models) ? response.data.models : [];
+    }
+
+    async waitForModelState(shouldBeLoaded) {
+        const startedAt = this.now();
+        while (this.now() - startedAt < OLLAMA_HANDOFF_TIMEOUT_MS) {
+            const runningModels = await this.getRunningModels();
+            const loaded = runningModels.some(
+                (entry) =>
+                    modelMatches(entry?.name, this.model) ||
+                    modelMatches(entry?.model, this.model),
+            );
+            if (loaded === shouldBeLoaded) {
+                return { durationMs: this.now() - startedAt };
+            }
+            await this.sleep(OLLAMA_HANDOFF_POLL_INTERVAL_MS);
+        }
+
+        throw new Error(
+            `Ollama model ${shouldBeLoaded ? "did not load" : "did not unload"} within ${OLLAMA_HANDOFF_TIMEOUT_MS}ms.`,
+        );
+    }
+
+    async unloadModelAndWait() {
+        const runningModels = await this.getRunningModels();
+        const loaded = runningModels.some(
+            (entry) =>
+                modelMatches(entry?.name, this.model) ||
+                modelMatches(entry?.model, this.model),
+        );
+        if (!this.modelMayBeLoaded && !loaded) {
+            return { alreadyUnloaded: true, durationMs: 0 };
+        }
+
+        await this.httpClient.post(
+            `${this.baseUrl}/api/generate`,
+            {
+                model: this.model,
+                prompt: "",
+                stream: false,
+                keep_alive: 0,
+            },
+            { timeout: OLLAMA_HANDOFF_TIMEOUT_MS },
+        );
+        const result = await this.waitForModelState(false);
+        this.modelMayBeLoaded = false;
+        return result;
+    }
+
+    async loadModelAndWait() {
+        await this.httpClient.post(
+            `${this.baseUrl}/api/generate`,
+            {
+                model: this.model,
+                prompt: "",
+                stream: false,
+                keep_alive: OLLAMA_KEEP_ALIVE,
+            },
+            { timeout: REQUEST_TIMEOUT },
+        );
+        const result = await this.waitForModelState(true);
+        this.modelMayBeLoaded = true;
+        return result;
     }
 
     logOllamaError(error) {

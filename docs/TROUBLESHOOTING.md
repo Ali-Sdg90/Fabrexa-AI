@@ -112,11 +112,12 @@ Check these items:
 
 1. Ollama is still running.
 2. `OLLAMA_MODEL` matches an installed model.
-3. The tracked `personalities/Friendly.txt` file is present.
-4. Any custom personality file has a non-empty prompt.
-5. The request timeout is long enough for your hardware.
+3. The tracked `personalities/prompts/Friendly.txt` file is present.
+4. Its matching `personalities/appearances/Friendly.txt` file is present.
+5. Any custom personality file has a non-empty prompt.
+6. The request timeout is long enough for your hardware.
 
-The included `personalities/Friendly.txt` file begins like this:
+The included `personalities/prompts/Friendly.txt` file begins like this:
 
 ```text
 Name: Friendly
@@ -145,7 +146,8 @@ Telegram response edits are intentionally limited. `TELEGRAM_STREAM_EDIT_INTERVA
 
 ## A personality does not appear
 
-- Place the file directly inside `personalities/`.
+- Place the chat prompt inside `personalities/prompts/`.
+- Place a same-named appearance-only file inside `personalities/appearances/` for automatic image identity.
 - Use the `.txt` extension.
 - Restart the bot after adding or renaming a file.
 - Give each file a distinct filename because the filename becomes its key.
@@ -190,6 +192,33 @@ MEMORY_PROCESSOR_TIMEZONE=Asia/Tehran
 ```
 
 `npm run check` validates the cron expression. The timezone must be a valid IANA timezone supported by the installed runtime.
+
+## Automatic images do not start
+
+Run `npm run check:setup`. With automatic images available, it verifies that the private checkpoint setting exists, the workflow and scene-director files are present, and the local ComfyUI `/queue` endpoint responds.
+
+Keep the actual checkpoint filename only in ignored `.env`:
+
+```env
+IMAGE_GENERATION_AVAILABLE=true
+COMFYUI_BASE_URL=http://127.0.0.1:8188
+COMFYUI_CHECKPOINT_NAME=your-local-checkpoint-file.safetensors
+```
+
+Do not put the checkpoint filename into `src/image/workflow_api.json`, Telegram messages, logs intended for publication, or commits. The committed workflow intentionally has a blank `ckpt_name` and receives the value at runtime.
+
+If only one Telegram account has no images, open **Image Settings** and re-enable them. The choice is stored in `chat_memory/users/<telegram-id>/image-generation.json` and applies to every personality.
+
+## GPU handoff fails
+
+Fabrexa will not start ComfyUI generation until the text model is verified as unloaded. After Telegram receives the image, Fabrexa asks ComfyUI to unload its models, verifies VRAM cleanup, and preloads the text model again. Check these items:
+
+1. ComfyUI is running locally and no unrelated workflow is active or queued.
+2. Ollama and ComfyUI point to the same expected GPU environment.
+3. The `/queue`, `/system_stats`, and `/free` ComfyUI endpoints are available.
+4. Increase the `OLLAMA_HANDOFF_TIMEOUT_MS` or ComfyUI cleanup timeout only when logs show a real timeout on slower hardware.
+
+Conversation jobs and scheduled memory processing are serialized, but a manually launched external Ollama or ComfyUI job is outside Fabrexa's queue and can still interfere.
 
 ## Detailed diagnostics
 

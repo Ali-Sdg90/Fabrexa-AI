@@ -12,13 +12,20 @@ chat_memory/
 old_chat_memory/
 *.log
 
-# Private personalities
+# Private personality prompts and appearance references
 personalities/*
-!personalities/.gitkeep
-!personalities/Friendly.txt
-!personalities/Elara Voss.txt
-!personalities/Sherlock Holmes.txt
-!personalities/Vent Girl.txt
+!personalities/prompts/
+!personalities/appearances/
+personalities/prompts/*
+personalities/appearances/*
+!personalities/prompts/Friendly.txt
+!personalities/prompts/Elara Voss.txt
+!personalities/prompts/Sherlock Holmes.txt
+!personalities/prompts/Vent Girl.txt
+!personalities/appearances/Friendly.txt
+!personalities/appearances/Elara Voss.txt
+!personalities/appearances/Sherlock Holmes.txt
+!personalities/appearances/Vent Girl.txt
 
 # Local editor and OS files
 .vscode/

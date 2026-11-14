@@ -4,12 +4,18 @@
 
 import { isOwner, replyNotOwner } from "../middleware/ownerCheck.js";
 import { quickKeyboard } from "../utils/keyboards.js";
-import { OLLAMA_MODEL } from "../../config/index.js";
+import {
+    IMAGE_GENERATION_AVAILABLE,
+    OLLAMA_MODEL,
+} from "../../config/index.js";
 
 export function registerCommandHandlers(bot) {
     bot.command("start", async (ctx) => {
         if (!isOwner(ctx)) return replyNotOwner(ctx);
 
+        const imageNote = IMAGE_GENERATION_AVAILABLE
+            ? "Automatic images are enabled by default for every personality."
+            : "Automatic images are unavailable in this application configuration.";
         const welcomeMessage = `👋 *Welcome to Fabrexa AI!*
 
 🤖 *Local model:* \`${OLLAMA_MODEL}\`
@@ -21,6 +27,9 @@ Send me any message, question, idea, or late-night thought and I'll answer with 
 🆕 New Chat - fresh conversation
 ⚙️ Change Personality - switch personality
 📝 Show Memory - view saved memories
+🖼️ Image Settings - enable or disable the image made after each reply
+
+${imageNote}
 
 _Just type your message and let's go!_ 🚀`;
 

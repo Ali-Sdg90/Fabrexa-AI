@@ -57,7 +57,7 @@ addCheck(
     "OWNER_ID",
     !botPrivate || Number.isInteger(ownerId),
     Number.isInteger(ownerId)
-        ? String(ownerId)
+        ? "set and numeric"
         : botPrivate
           ? "missing or not numeric"
           : "not required in public mode",
@@ -86,6 +86,68 @@ addCheck("Ollama model", Boolean(model), model);
 
 const logMode = (process.env.LOG_MODE || "normal").trim();
 addCheck("Log mode", Boolean(logMode), logMode);
+
+const personalityPromptDirectory = "personalities/prompts";
+const personalityAppearanceDirectory = "personalities/appearances";
+const personalityPromptFiles = fs.existsSync(personalityPromptDirectory)
+    ? fs
+          .readdirSync(personalityPromptDirectory)
+          .filter((file) => file.endsWith(".txt"))
+    : [];
+const missingAppearanceFiles = personalityPromptFiles.filter(
+    (file) =>
+        !fs.existsSync(`${personalityAppearanceDirectory}/${file}`),
+);
+addCheck(
+    "Personality prompt directory",
+    personalityPromptFiles.length > 0,
+    `${personalityPromptFiles.length} prompt files`,
+);
+addCheck(
+    "Personality appearance pairs",
+    personalityPromptFiles.length > 0 && missingAppearanceFiles.length === 0,
+    missingAppearanceFiles.length
+        ? `missing: ${missingAppearanceFiles.join(", ")}`
+        : `${personalityPromptFiles.length} paired appearance files`,
+);
+
+const imageGenerationAvailable = !["0", "false", "no", "off"].includes(
+    (process.env.IMAGE_GENERATION_AVAILABLE || "true").trim().toLowerCase(),
+);
+addCheck(
+    "Automatic image capability",
+    true,
+    imageGenerationAvailable ? "available" : "disabled by configuration",
+);
+
+if (imageGenerationAvailable) {
+    const checkpointConfigured = Boolean(
+        process.env.COMFYUI_CHECKPOINT_NAME?.trim(),
+    );
+    addCheck(
+        "Private ComfyUI checkpoint",
+        checkpointConfigured,
+        checkpointConfigured ? "set in .env" : "missing",
+    );
+
+    const workflowPath =
+        process.env.COMFYUI_WORKFLOW_PATH?.trim() ||
+        "src/image/workflow_api.json";
+    const directorPromptPath =
+        process.env.IMAGE_SCENE_DIRECTOR_PROMPT_PATH?.trim() ||
+        "src/image/scene-director.txt";
+    addCheck(
+        "ComfyUI API workflow",
+        fs.existsSync(workflowPath),
+        workflowPath,
+    );
+    addCheck(
+        "Scene-director prompt",
+        fs.existsSync(directorPromptPath),
+        directorPromptPath,
+    );
+
+}
 
 const streamEditInterval = Number(
     process.env.TELEGRAM_STREAM_EDIT_INTERVAL_MS || 6000,
@@ -169,6 +231,32 @@ try {
         false,
         `${ollamaBaseUrl} is not reachable (${error.message})`,
     );
+}
+
+if (imageGenerationAvailable) {
+    const comfyUiBaseUrl = (
+        process.env.COMFYUI_BASE_URL?.trim() || "http://127.0.0.1:8188"
+    ).replace(/\/+$/, "");
+    try {
+        const response = await fetch(`${comfyUiBaseUrl}/queue`, {
+            signal: AbortSignal.timeout(3000),
+        });
+        const data = await response.json();
+        const validQueue =
+            Array.isArray(data.queue_running) &&
+            Array.isArray(data.queue_pending);
+        addCheck(
+            "ComfyUI server",
+            response.ok && validQueue,
+            comfyUiBaseUrl,
+        );
+    } catch (error) {
+        addCheck(
+            "ComfyUI server",
+            false,
+            `${comfyUiBaseUrl} is not reachable (${error.message})`,
+        );
+    }
 }
 
 console.log("\nFabrexa AI setup check\n");

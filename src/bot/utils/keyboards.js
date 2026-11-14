@@ -8,6 +8,7 @@ export const BUTTONS = {
     newChat: "🆕 New Chat",
     changePersonality: "⚙️ Change Personality",
     showMemory: "📝 Show Memory",
+    imageSettings: "🖼️ Image Settings",
 };
 
 export const mainMenu = {
@@ -21,6 +22,12 @@ export const mainMenu = {
                 },
             ],
             [{ text: BUTTONS.showMemory, callback_data: "show_memory" }],
+            [
+                {
+                    text: BUTTONS.imageSettings,
+                    callback_data: "show_image_settings",
+                },
+            ],
         ],
     },
 };
@@ -31,6 +38,7 @@ export const quickKeyboard = {
             [{ text: BUTTONS.newChat }],
             [{ text: BUTTONS.changePersonality }],
             [{ text: BUTTONS.showMemory }],
+            [{ text: BUTTONS.imageSettings }],
         ],
         resize_keyboard: true,
         one_time_keyboard: false,
@@ -74,4 +82,28 @@ export function buildMemoryKeyboard(memoryEntries) {
             inline_keyboard: rows,
         },
     };
+}
+
+export function imageSettingsMessage(enabled, available = true) {
+    if (!available) {
+        return "🖼️ Automatic images are unavailable in the current application configuration.";
+    }
+    return `🖼️ Automatic image after each reply: ${enabled ? "Enabled" : "Disabled"}\n\nThis preference belongs to your Telegram account and applies to every personality.`;
+}
+
+export function buildImageSettingsKeyboard(enabled, available = true) {
+    const rows = [];
+    if (available) {
+        rows.push([
+            {
+                text: enabled ? "✅ Images enabled" : "Enable images",
+                callback_data: "image_generation_enable",
+            },
+            {
+                text: enabled ? "Disable images" : "⛔ Images disabled",
+                callback_data: "image_generation_disable",
+            },
+        ]);
+    }
+    return { reply_markup: { inline_keyboard: rows } };
 }

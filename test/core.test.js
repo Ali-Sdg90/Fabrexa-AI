@@ -23,9 +23,11 @@ const {
     setPendingMemoryEdit,
     deletePendingMemoryEdit,
 } = await import("../src/bot/handlers/actions.js");
-const { registerMessageHandler } = await import(
-    "../src/bot/handlers/messages.js"
-);
+const {
+    buildProcessingMessage,
+    formatModelDisplayName,
+    registerMessageHandler,
+} = await import("../src/bot/handlers/messages.js");
 const { getMemoryService } = await import("../src/memory/memoryService.js");
 const { parseSessionHistory } = await import("../src/memory/index.js");
 const {
@@ -75,6 +77,10 @@ test("the four demo personalities and Friendly default are available", () => {
         "Vent Girl",
     ]) {
         assert.ok(PERSONALITIES[key], `${key} should be available`);
+        assert.ok(
+            PERSONALITIES[key].appearance,
+            `${key} should have a separate appearance reference`,
+        );
     }
 
     assert.equal(PERSONALITIES.Friendly.name, "Friendly");
@@ -87,6 +93,41 @@ test("the four demo personalities and Friendly default are available", () => {
     assert.match(
         PERSONALITIES.Friendly.prompt,
         /warm, thoughtful, and easygoing assistant/i,
+    );
+    assert.match(PERSONALITIES.Friendly.appearance, /approachable face/i);
+    for (const personality of Object.values(PERSONALITIES)) {
+        assert.ok(
+            personality.appearance,
+            `${personality.key} should have an appearance reference`,
+        );
+    }
+});
+
+test("processing status shows concise text and image model details", () => {
+    assert.equal(
+        formatModelDisplayName(
+            "hf.co/publisher/Story-Writer-9B-GGUF:Q6_K",
+        ),
+        "Story Writer 9B",
+    );
+    assert.equal(
+        formatModelDisplayName("PortraitStudio-DMD.safetensors"),
+        "PortraitStudio DMD",
+    );
+    assert.equal(
+        buildProcessingMessage({
+            personalityName: "Roxy",
+            memoryEnabled: true,
+            imageEnabled: true,
+            textModel: "gemma3:12b",
+            imageModel: "cyberpony.safetensors",
+        }),
+        [
+            "⏳ Processing...",
+            "💬 Text→Text: gemma3 12b",
+            "🎨 Text→Image: cyberpony",
+            "🎭 Roxy · Memory on",
+        ].join("\n"),
     );
 });
 
