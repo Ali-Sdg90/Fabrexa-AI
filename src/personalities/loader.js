@@ -6,10 +6,26 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { PERSONALITY_DIR, DEFAULT_PERSONALITY } from "../config/index.js";
+import {
+    DEFAULT_PERSONALITY,
+    PERSONALITY_APPEARANCE_DIR,
+    PERSONALITY_DIR,
+} from "../config/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const personalityRoot = path.join(__dirname, "..", "..", PERSONALITY_DIR);
+const appearanceRoot = path.join(
+    __dirname,
+    "..",
+    "..",
+    PERSONALITY_APPEARANCE_DIR,
+);
+
+function loadAppearance(key) {
+    const appearancePath = path.join(appearanceRoot, `${key}.txt`);
+    if (!fs.existsSync(appearancePath)) return "";
+    return fs.readFileSync(appearancePath, "utf-8").trim();
+}
 
 function parsePersonalityFile(key, fileContents) {
     const lines = fileContents.split(/\r?\n/);
@@ -59,6 +75,7 @@ function parsePersonalityFile(key, fileContents) {
         key,
         name,
         prompt: prompt.trim(),
+        appearance: loadAppearance(key),
     };
 }
 
@@ -69,6 +86,7 @@ export function loadPersonalities() {
                 key: DEFAULT_PERSONALITY,
                 name: "Friendly",
                 prompt: "You are Friendly, a warm, thoughtful, and easygoing assistant.",
+                appearance: "",
             },
         };
     }

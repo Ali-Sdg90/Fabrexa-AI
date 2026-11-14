@@ -77,6 +77,10 @@ test("the four demo personalities and Friendly default are available", () => {
         "Vent Girl",
     ]) {
         assert.ok(PERSONALITIES[key], `${key} should be available`);
+        assert.ok(
+            PERSONALITIES[key].appearance,
+            `${key} should have a separate appearance reference`,
+        );
     }
 
     assert.equal(PERSONALITIES.Friendly.name, "Friendly");
@@ -90,6 +94,13 @@ test("the four demo personalities and Friendly default are available", () => {
         PERSONALITIES.Friendly.prompt,
         /warm, thoughtful, and easygoing assistant/i,
     );
+    assert.match(PERSONALITIES.Friendly.appearance, /approachable face/i);
+    for (const personality of Object.values(PERSONALITIES)) {
+        assert.ok(
+            personality.appearance,
+            `${personality.key} should have an appearance reference`,
+        );
+    }
 });
 
 test("processing status shows concise text and image model details", () => {

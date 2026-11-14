@@ -19,7 +19,7 @@ Ollama /api/chat
     ↓
 Streamed Telegram reply
     ↓
-Character appearance from personality + scene from final assistant reply
+Character appearance file + scene from final assistant reply
     ↓
 Unload text model → ComfyUI image → Telegram photo
     ↓
@@ -35,7 +35,7 @@ For each normal text message, the bot:
 5. Sends the request to Ollama with streaming enabled.
 6. Shows a compact model/personality/memory placeholder, then replaces it as soon as the first streamed text chunk arrives and continues throttled edits.
 7. Stores and finishes sending the final conversation locally.
-8. If the Telegram account has automatic images enabled, asks the same text model to direct one still image. The selected personality prompt supplies only stated character appearance; the final assistant reply supplies only the scene.
+8. If the Telegram account has automatic images enabled, asks the same text model to direct one still image. The matching file under `personalities/appearances/` supplies character appearance; the final assistant reply supplies only the scene. The personality system prompt is not included.
 9. Stores the scene direction in the session log and the user's private image record without adding it to future conversation context.
 10. Unloads the text model, sends a small image-building status, runs ComfyUI with the complete direction, and sends the result with the direction inside an expandable caption. Only the displayed caption is shortened when Telegram's fixed caption limit requires it.
 11. Deletes the status, unloads the ComfyUI model, and preloads the text model for the next queued message.
@@ -61,7 +61,7 @@ The Ollama request includes `temperature`, `top_p`, `num_ctx`, `num_predict`, an
 
 ## Personalities
 
-Personalities are local `.txt` files inside `personalities/`. The filename without `.txt` is the personality key.
+Each personality uses two same-named local `.txt` files. `personalities/prompts/<key>.txt` is the chat system prompt, while `personalities/appearances/<key>.txt` contains only stable visual identity, body, clothing, and accessory details for image direction. The filename without `.txt` is the personality key.
 
 ```text
 Name: Friendly
@@ -69,9 +69,9 @@ Prompt:
 You are Friendly, a warm, thoughtful, and easygoing assistant.
 ```
 
-The `Name` line is shown in Telegram. Everything after `Prompt:` becomes the personality prompt.
+The `Name` line in the prompt file is shown in Telegram. Everything after `Prompt:` becomes the personality prompt. The appearance file is plain text and is never added to chat context.
 
-The tracked `Friendly.txt` file provides the default personality. The repository also includes Elara Voss, Sherlock Holmes, and Vent Girl as demo personalities, so a fresh clone is ready to use. Additional personality prompt files remain ignored by Git to keep private prompts out of commits.
+The tracked prompt and appearance files for Friendly provide the default personality. The repository also includes paired files for Elara Voss, Sherlock Holmes, and Vent Girl, so a fresh clone is ready to use. Additional files in both personality folders remain ignored by Git to keep private prompts and private appearance references out of commits.
 
 ## Conversation and memory
 
@@ -144,7 +144,7 @@ The repository's [`.env.example`](../.env.example) is the source of truth for a 
 
 The same `OLLAMA_MODEL` is intentionally used for chat replies, memory analysis, and scene direction. This keeps the runtime to one text model plus one private ComfyUI checkpoint.
 
-The director treats the selected personality prompt as read-only appearance reference data: face, eyes, hair, skin, body, proportions, clothing, accessories, and other stable visual identifiers. It ignores personality behavior and roleplay instructions. Scene, action, pose, expression, setting, and composition come only from the completed assistant reply. The assistant character is prioritized over the environment and over any user representation.
+The director receives the selected character's standalone appearance file: face, eyes, hair, skin, body, proportions, clothing, accessories, and other stable visual identifiers. It does not receive the personality prompt. Scene, action, pose, expression, setting, and composition come only from the completed assistant reply. The assistant character is prioritized over the environment and over any user representation.
 
 ### Automatic image continuation
 
@@ -204,6 +204,7 @@ npm run check
 - Node.js, npm, and the Ollama CLI are available
 - Required environment values are present
 - The memory cron expression is valid
+- Every personality prompt has a same-named appearance file
 - The Ollama server responds
 - The configured model is installed
 - The private checkpoint setting and image files are present

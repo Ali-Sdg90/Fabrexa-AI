@@ -32,7 +32,7 @@ export class ImagePipeline {
 
     async run({
         latestAssistantResponse,
-        characterSystemPrompt,
+        characterAppearance,
         onPromptReady,
         onGenerationStart,
         onImageReady,
@@ -52,9 +52,9 @@ export class ImagePipeline {
 
         let phaseStartedAt = this.now();
         const scenePrompt =
-            await this.sceneDirector.createFromCharacterAndLatestResponse(
+            await this.sceneDirector.createFromAppearanceAndLatestResponse(
                 latestAssistantResponse,
-                characterSystemPrompt,
+                characterAppearance,
             );
         timings.sceneDirectionMs = this.now() - phaseStartedAt;
 

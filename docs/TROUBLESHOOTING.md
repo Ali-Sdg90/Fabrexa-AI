@@ -112,11 +112,12 @@ Check these items:
 
 1. Ollama is still running.
 2. `OLLAMA_MODEL` matches an installed model.
-3. The tracked `personalities/Friendly.txt` file is present.
-4. Any custom personality file has a non-empty prompt.
-5. The request timeout is long enough for your hardware.
+3. The tracked `personalities/prompts/Friendly.txt` file is present.
+4. Its matching `personalities/appearances/Friendly.txt` file is present.
+5. Any custom personality file has a non-empty prompt.
+6. The request timeout is long enough for your hardware.
 
-The included `personalities/Friendly.txt` file begins like this:
+The included `personalities/prompts/Friendly.txt` file begins like this:
 
 ```text
 Name: Friendly
@@ -145,7 +146,8 @@ Telegram response edits are intentionally limited. `TELEGRAM_STREAM_EDIT_INTERVA
 
 ## A personality does not appear
 
-- Place the file directly inside `personalities/`.
+- Place the chat prompt inside `personalities/prompts/`.
+- Place a same-named appearance-only file inside `personalities/appearances/` for automatic image identity.
 - Use the `.txt` extension.
 - Restart the bot after adding or renaming a file.
 - Give each file a distinct filename because the filename becomes its key.

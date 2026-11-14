@@ -55,7 +55,15 @@ test("scene direction separates character appearance from the latest reply scene
         request.payload.messages[0].content,
         /CHARACTER HAS SILVER HAIR AND GREEN EYES/,
     );
-    assert.match(request.payload.messages[0].content, /only stated visual identity/i);
+    assert.match(
+        request.payload.messages[0].content,
+        /CHARACTER APPEARANCE REFERENCE/,
+    );
+    assert.doesNotMatch(
+        request.payload.messages[0].content,
+        /CHARACTER SYSTEM-PROMPT REFERENCE/,
+    );
+    assert.match(request.payload.messages[0].content, /Preserve its stated face/i);
     assert.match(request.payload.messages[1].content, /LATEST ASSISTANT RESPONSE/);
     assert.doesNotMatch(request.payload.messages[1].content, /SILVER HAIR/);
     assert.doesNotMatch(request.payload.messages[1].content, /conversation history content/);
@@ -173,7 +181,7 @@ test("per-account image preference defaults on and persists scene direction", as
         assert.equal(stored.imageGenerationEnabled, false);
         assert.equal(
             stored.scenePrompts[0].source,
-            "character_system_appearance_and_latest_reply_scene",
+            "character_appearance_file_and_latest_reply_scene",
         );
         assert.equal(stored.scenePrompts[0].scenePrompt, "cinematic final scene");
         assert.equal(stored.scenePrompts[0].assistantResponse, "The final story reply.");
@@ -194,8 +202,8 @@ test("image pipeline preserves the required model handoff order", async () => {
             },
         },
         sceneDirector: {
-            async createFromCharacterAndLatestResponse(value, characterPrompt) {
-                events.push(`direct:${value}:${characterPrompt}`);
+            async createFromAppearanceAndLatestResponse(value, appearance) {
+                events.push(`direct:${value}:${appearance}`);
                 return "directed prompt";
             },
         },
@@ -213,7 +221,7 @@ test("image pipeline preserves the required model handoff order", async () => {
 
     const result = await pipeline.run({
         latestAssistantResponse: "latest only",
-        characterSystemPrompt: "silver hair",
+        characterAppearance: "silver hair",
         async onPromptReady(prompt) {
             events.push(`persist:${prompt}`);
         },
@@ -252,7 +260,7 @@ test("image pipeline restores the text model after image generation fails", asyn
             },
         },
         sceneDirector: {
-            async createFromCharacterAndLatestResponse() {
+            async createFromAppearanceAndLatestResponse() {
                 return "directed prompt";
             },
         },

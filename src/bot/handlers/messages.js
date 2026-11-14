@@ -183,7 +183,7 @@ async function sendFinalResponse(ctx, processingMessage, response) {
 async function sendAutomaticImage(
     ctx,
     response,
-    characterSystemPrompt,
+    characterAppearance,
     username,
     userId,
 ) {
@@ -194,7 +194,7 @@ async function sendAutomaticImage(
     try {
         const result = await imagePipeline.run({
             latestAssistantResponse: response,
-            characterSystemPrompt,
+            characterAppearance,
             onPromptReady: async (scenePrompt) => {
                 caption = buildImageCaption(scenePrompt);
                 await appendChatArtifact(
@@ -359,7 +359,7 @@ async function processConversation({
         const imageResult = await sendAutomaticImage(
             ctx,
             response,
-            personality.prompt,
+            personality.appearance,
             username,
             userId,
         );

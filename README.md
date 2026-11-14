@@ -50,14 +50,14 @@ Fabrexa
    ↓
 Ollama on your computer
    ├── streamed reply in Telegram
-   └── character appearance from personality + scene from final reply
+   └── character appearance file + scene from final reply
            ↓
        ComfyUI image
            ↓
        Telegram photo + collapsed direction prompt
 ```
 
-Fabrexa sends the active personality prompt, up to 24 recent conversation messages, optional long-term memory, and the new message to Ollama. Recent history has an approximate 4096-token budget and is shortened from the oldest message when needed so the prompt and reply still fit the configured context window. The response is streamed back to Telegram. When automatic images are enabled, the same text model directs one still image using character appearance from the selected personality prompt and scene direction from the completed assistant response. Fabrexa records the direction, unloads the text model, runs the local ComfyUI workflow, sends the photo, unloads the image model, and preloads the text model again.
+Fabrexa sends the active personality prompt, up to 24 recent conversation messages, optional long-term memory, and the new message to Ollama. Recent history has an approximate 4096-token budget and is shortened from the oldest message when needed so the prompt and reply still fit the configured context window. The response is streamed back to Telegram. When automatic images are enabled, the same text model directs one still image using the selected character's separate appearance file and scene direction from the completed assistant response. Fabrexa records the direction, unloads the text model, runs the local ComfyUI workflow, sends the photo, unloads the image model, and preloads the text model again.
 
 ## Requirements
 
@@ -125,7 +125,7 @@ Never commit `.env` or share your Telegram bot token.
 
 `OWNER_ID` controls who can use the private bot. `OWNER_USERNAME` is the public contact handle shown to other Telegram users, so enter it without spaces; the leading `@` is optional. When someone without access contacts the bot, Fabrexa explains that the instance is private, points them to this username to request access, and links to the GitHub project for self-hosting.
 
-The repository includes four ready-to-use demo personalities: Friendly, Elara Voss, Sherlock Holmes, and Vent Girl. Add more `.txt` files to `personalities/` if you want custom options in the Telegram personality picker.
+The repository includes four ready-to-use demo personalities: Friendly, Elara Voss, Sherlock Holmes, and Vent Girl. Chat prompts live in `personalities/prompts/`, while image-only appearance references live in `personalities/appearances/`. Add matching `.txt` filenames to both folders for a custom personality.
 
 ### 4. Check and run
 
@@ -153,7 +153,7 @@ Fabrexa responds to normal text messages and provides four quick actions:
 
 Automatic images are enabled by default for every personality. The preference is stored per Telegram user, so changing personalities or starting a new chat does not reset it.
 
-The image director receives two isolated inputs: the selected personality's system prompt only as a source of stated facial, bodily, hair, clothing, and other stable appearance traits; and the final assistant reply only as the source of the scene, action, pose, expression, and setting. It does not receive the user's message, earlier history, or long-term memory. The assistant character is kept as the dominant subject, while the user is omitted unless the final reply requires the user's physical presence. The generated direction is saved both as a non-conversational session artifact and under `chat_memory/users/<telegram-id>/image-generation.json`; artifacts are deliberately excluded from later chat context.
+The image director receives two isolated inputs: the selected character's appearance file as the only source of facial, bodily, hair, clothing, and other stable appearance traits; and the final assistant reply as the only source of the scene, action, pose, expression, and setting. It never receives the personality system prompt, the user's message, earlier history, or long-term memory. The assistant character is kept as the dominant subject, while the user is omitted unless the final reply requires the user's physical presence. The generated direction is saved both as a non-conversational session artifact and under `chat_memory/users/<telegram-id>/image-generation.json`; artifacts are deliberately excluded from later chat context.
 
 The Telegram photo caption contains the prompt used by ComfyUI inside an expandable HTML blockquote. Scene prompts are not length-limited before storage or generation; when one exceeds Telegram's fixed photo-caption limit, only the displayed caption becomes a shortened preview. While ComfyUI is working, the bot shows only `Your image is being created...`; that status is removed after the photo arrives.
 
@@ -214,7 +214,7 @@ npm test                # Run the focused automated tests
 npm run memory-process  # Process short-term memory manually
 ```
 
-`npm run check` runs lint, the focused tests, and `npm run check:setup`. The setup check confirms that the local requirements, environment values, Ollama server, selected text model, private ComfyUI checkpoint setting, workflow files, and ComfyUI queue are available. It does not contact Telegram to validate the bot token or run a real generation. A success message is printed only after every check passes.
+`npm run check` runs lint, the focused tests, and `npm run check:setup`. The setup check confirms that the local requirements, paired personality prompt/appearance files, environment values, Ollama server, selected text model, private ComfyUI checkpoint setting, workflow files, and ComfyUI queue are available. It does not contact Telegram to validate the bot token or run a real generation. A success message is printed only after every check passes.
 
 ## Project structure
 
@@ -227,7 +227,9 @@ src/
 ├── memory/          # Conversation, short-term, and long-term memory
 └── personalities/   # Personality file loader
 
-personalities/       # Local personality prompts
+personalities/
+├── prompts/         # Chat personality prompts
+└── appearances/     # Image-only character appearance references
 chat_memory/         # Local runtime data, created automatically
 public/              # Static project website
 docs/                # Focused technical and troubleshooting guides

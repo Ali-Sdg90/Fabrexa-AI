@@ -135,7 +135,11 @@ export const IS_DEV_LOG_MODE = new Set([
 
 // Chat memory configuration
 export const CHAT_MEMORY_DIR = "chat_memory";
-export const PERSONALITY_DIR = "personalities";
+export const PERSONALITY_DIR = path.join("personalities", "prompts");
+export const PERSONALITY_APPEARANCE_DIR = path.join(
+    "personalities",
+    "appearances",
+);
 export const DEFAULT_PERSONALITY = "Friendly";
 const configuredMemoryPersonalities =
     process.env.MEMORY_ENABLED_PERSONALITIES;

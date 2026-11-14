@@ -95,7 +95,7 @@ export class ImagePreferenceService {
                 id: randomUUID(),
                 createdAt: new Date().toISOString(),
                 chatId: String(chatId),
-                source: "character_system_appearance_and_latest_reply_scene",
+                source: "character_appearance_file_and_latest_reply_scene",
                 assistantResponse,
                 scenePrompt,
             });

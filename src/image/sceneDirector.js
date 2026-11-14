@@ -63,9 +63,9 @@ export class SceneDirectorService {
         }
     }
 
-    async createFromCharacterAndLatestResponse(
+    async createFromAppearanceAndLatestResponse(
         latestAssistantResponse,
-        characterSystemPrompt,
+        characterAppearance,
     ) {
         if (!this.systemPrompt) {
             throw new ScenePromptError(
@@ -76,7 +76,7 @@ export class SceneDirectorService {
         const rawPrompt = await this.aiClient.generateScenePrompt(
             latestAssistantResponse,
             this.systemPrompt,
-            characterSystemPrompt,
+            characterAppearance,
         );
         return normalizeScenePrompt(rawPrompt);
     }

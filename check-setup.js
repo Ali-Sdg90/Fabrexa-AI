@@ -87,6 +87,30 @@ addCheck("Ollama model", Boolean(model), model);
 const logMode = (process.env.LOG_MODE || "normal").trim();
 addCheck("Log mode", Boolean(logMode), logMode);
 
+const personalityPromptDirectory = "personalities/prompts";
+const personalityAppearanceDirectory = "personalities/appearances";
+const personalityPromptFiles = fs.existsSync(personalityPromptDirectory)
+    ? fs
+          .readdirSync(personalityPromptDirectory)
+          .filter((file) => file.endsWith(".txt"))
+    : [];
+const missingAppearanceFiles = personalityPromptFiles.filter(
+    (file) =>
+        !fs.existsSync(`${personalityAppearanceDirectory}/${file}`),
+);
+addCheck(
+    "Personality prompt directory",
+    personalityPromptFiles.length > 0,
+    `${personalityPromptFiles.length} prompt files`,
+);
+addCheck(
+    "Personality appearance pairs",
+    personalityPromptFiles.length > 0 && missingAppearanceFiles.length === 0,
+    missingAppearanceFiles.length
+        ? `missing: ${missingAppearanceFiles.join(", ")}`
+        : `${personalityPromptFiles.length} paired appearance files`,
+);
+
 const imageGenerationAvailable = !["0", "false", "no", "off"].includes(
     (process.env.IMAGE_GENERATION_AVAILABLE || "true").trim().toLowerCase(),
 );
