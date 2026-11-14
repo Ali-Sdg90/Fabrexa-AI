@@ -510,6 +510,7 @@ test("the committed workflow injects prompt, private checkpoint, and seed into a
 
     assert.equal(workflow["73"].inputs.ckpt_name, "");
     assert.equal(workflow["84"].inputs.filename_prefix, "cyberpony");
+    assert.deepEqual(workflow["84"].inputs.images, ["65", 0]);
     assert.equal(validateWorkflowMappings(workflow, mappings), true);
     const injected = cloneAndInjectWorkflow(workflow, mappings, {
         prompt: "directed prompt",
