@@ -91,19 +91,35 @@ export class ImagePreferenceService {
             const normalizedUser = normalizeUser(user);
             const record = await this.#load(normalizedUser);
             record.telegramUser = normalizedUser;
-            record.scenePrompts.push({
+            const promptRecord = {
                 id: randomUUID(),
                 createdAt: new Date().toISOString(),
                 chatId: String(chatId),
                 source: "character_appearance_file_and_latest_reply_scene",
                 assistantResponse,
                 scenePrompt,
-            });
+            };
+            record.scenePrompts.push(promptRecord);
             record.scenePrompts = record.scenePrompts.slice(
                 -this.promptHistoryLimit,
             );
             record.updatedAt = new Date().toISOString();
             await writeJsonAtomically(record.filePath, this.#serializable(record));
+            return Object.freeze({ ...promptRecord });
+        });
+    }
+
+    getScenePrompt({ user, chatId, promptId }) {
+        return this.#enqueue(async () => {
+            const record = await this.#load(user);
+            const promptRecord = record.scenePrompts.find(
+                (entry) =>
+                    entry?.id === promptId &&
+                    String(entry?.chatId) === String(chatId),
+            );
+            return promptRecord
+                ? Object.freeze({ ...promptRecord })
+                : null;
         });
     }
 

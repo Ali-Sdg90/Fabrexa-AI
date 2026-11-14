@@ -102,7 +102,7 @@ export const OLLAMA_MODEL =
     "llama3.1";
 // Chat, memory analysis, and scene direction intentionally share one text model.
 export const OLLAMA_ANALYZER_MODEL = OLLAMA_MODEL;
-export const OLLAMA_KEEP_ALIVE = process.env.OLLAMA_KEEP_ALIVE?.trim() || "10m";
+export const OLLAMA_KEEP_ALIVE = process.env.OLLAMA_KEEP_ALIVE?.trim() || "5m";
 export const OLLAMA_NUM_CTX = readNumber("OLLAMA_NUM_CTX", 8192);
 export const OLLAMA_TEMPERATURE = readNumber("OLLAMA_TEMPERATURE", 0.8);
 export const OLLAMA_TOP_P = readNumber("OLLAMA_TOP_P", 0.9);

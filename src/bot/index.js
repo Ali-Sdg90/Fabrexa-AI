@@ -18,6 +18,7 @@ import {
 } from "../image/runtime.js";
 import { registerCommandHandlers } from "./handlers/commands.js";
 import { registerActionHandlers } from "./handlers/actions.js";
+import { registerImageRegenerationHandler } from "./handlers/imageRegeneration.js";
 import { registerQuickActionHandlers } from "./handlers/quickActions.js";
 import { registerMessageHandler } from "./handlers/messages.js";
 
@@ -26,6 +27,7 @@ const bot = new Telegraf(TELEGRAM_BOT_TOKEN);
 export function createBot() {
     registerCommandHandlers(bot);
     registerActionHandlers(bot);
+    registerImageRegenerationHandler(bot);
     registerQuickActionHandlers(bot);
     registerMessageHandler(bot);
 

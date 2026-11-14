@@ -37,10 +37,12 @@ For each normal text message, the bot:
 7. Stores and finishes sending the final conversation locally.
 8. If the Telegram account has automatic images enabled, asks the same text model to direct one still image. The matching file under `personalities/appearances/` supplies character appearance; the final assistant reply supplies only the scene. The personality system prompt is not included.
 9. Stores the scene direction in the session log and the user's private image record without adding it to future conversation context.
-10. Unloads the text model, sends a small image-building status, runs ComfyUI with the complete direction, and sends the result with the direction inside an expandable caption. Only the displayed caption is shortened when Telegram's fixed caption limit requires it.
+10. Unloads the text model, sends a small image-building status, runs ComfyUI with the complete direction, and sends the result with the direction inside an expandable caption and a Regenerate button. Only the displayed caption is shortened when Telegram's fixed caption limit requires it.
 11. Deletes the status, unloads the ComfyUI model, and preloads the text model for the next queued message.
 
-After successful photo delivery and model recovery, the console reports wall-clock durations for request setup, queue wait, text-model preparation, context/memory, text generation and delivery, scene direction, prompt persistence, both model handoffs, image generation and delivery, time until the photo, and total time including cleanup.
+After successful photo delivery and model recovery, the console reports wall-clock durations for request setup, queue wait, text-model preparation, context/memory, text generation and delivery, scene direction, prompt persistence, both model handoffs, image generation and delivery, time until the photo, and total time including cleanup. The same report is appended to the active session as `Artifact(Pipeline Timing)`.
+
+The Regenerate callback stores only the saved scene-prompt ID. The handler verifies the Telegram user and chat, retrieves the full private prompt, enters the shared serial queue, performs the same text-to-image-to-text model handoff with a new seed, sends a new photo message with the same caption and button, and logs regeneration timings to the console and `Artifact(Image Regeneration Timing)` in the active session. It does not rerun chat generation or scene direction.
 
 The Ollama request includes `temperature`, `top_p`, `num_ctx`, `num_predict`, and `keep_alive` from the environment configuration.
 
@@ -87,7 +89,7 @@ Fabrexa stores runtime data under `chat_memory/<chat-id>/`.
 
 ### Recent conversation
 
-Recent messages from the active session provide normal conversational context. By default, Fabrexa considers up to 24 previous messages with an approximate 4096-token history budget. It also reserves room for the system and personality prompt, long-term memory, the latest user message, the configured maximum response, and a small safety margin. If everything does not fit, the oldest history messages are removed first. Starting a new chat creates a new session, so earlier session messages are no longer included. `Artifact(Scene Director)` log entries remain auditable in the session file but are skipped by the conversation parser.
+Recent messages from the active session provide normal conversational context. By default, Fabrexa considers up to 24 previous messages with an approximate 4096-token history budget. It also reserves room for the system and personality prompt, long-term memory, the latest user message, the configured maximum response, and a small safety margin. If everything does not fit, the oldest history messages are removed first. Starting a new chat creates a new session, so earlier session messages are no longer included. Scene-direction and pipeline-timing artifact entries remain auditable in the session file but are skipped by the conversation parser.
 
 ### Short-term memory
 
@@ -128,7 +130,7 @@ The repository's [`.env.example`](../.env.example) is the source of truth for a 
 | --- | --- | --- |
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Ollama server base URL without `/api/chat` |
 | `OLLAMA_MODEL` | `llama3.1` in code | Main chat model |
-| `OLLAMA_KEEP_ALIVE` | `10m` | How long Ollama keeps a model loaded |
+| `OLLAMA_KEEP_ALIVE` | `5m` | How long Ollama keeps a model loaded |
 | `OLLAMA_NUM_CTX` | `8192` | Context window size |
 | `OLLAMA_TEMPERATURE` | `0.8` | Sampling temperature |
 | `OLLAMA_TOP_P` | `0.9` | Nucleus sampling value |

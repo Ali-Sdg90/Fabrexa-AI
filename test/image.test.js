@@ -18,6 +18,9 @@ const {
     validateWorkflowMappings,
 } = await import("../src/image/comfyui.js");
 const { ImagePipeline } = await import("../src/image/pipeline.js");
+const { registerImageRegenerationHandler } = await import(
+    "../src/bot/handlers/imageRegeneration.js"
+);
 const { ImagePreferenceService } = await import(
     "../src/image/preferences.js"
 );
@@ -25,7 +28,9 @@ const { SerialTaskQueue } = await import("../src/image/queue.js");
 const { normalizeScenePrompt } = await import(
     "../src/image/sceneDirector.js"
 );
-const { buildImageCaption } = await import("../src/image/telegram.js");
+const { buildImageCaption, buildRegenerateImageKeyboard } = await import(
+    "../src/image/telegram.js"
+);
 const { parseSessionHistory } = await import("../src/memory/index.js");
 
 test("scene direction separates character appearance from the latest reply scene", async () => {
@@ -118,6 +123,16 @@ test("photo caption uses an expandable Telegram blockquote and escapes HTML", ()
     assert.ok(caption.length <= 1024);
 });
 
+test("regenerate keyboard stores only a compact prompt reference", () => {
+    const promptId = "12345678-1234-4234-8234-123456789abc";
+    const keyboard = buildRegenerateImageKeyboard(promptId);
+    const button = keyboard.reply_markup.inline_keyboard[0][0];
+
+    assert.equal(button.text, "🔄 Regenerate");
+    assert.equal(button.callback_data, `regenerate_image:${promptId}`);
+    assert.ok(button.callback_data.length <= 64);
+});
+
 test("long scene prompts stay intact for generation and use a safe caption preview", () => {
     const scenePrompt = `woman < rain & neon > ${"detailed scene ".repeat(200)}`;
     const normalizedPrompt = normalizeScenePrompt(scenePrompt);
@@ -137,6 +152,8 @@ test("scene-director artifacts stay in logs but out of conversation context", ()
             "[2026-01-01 10:00:00.000] User: Continue the story",
             "[2026-01-01 10:00:01.000] Friendly: The door opens.",
             "[2026-01-01 10:00:02.000] Artifact(Scene Director): cinematic doorway",
+            "[2026-01-01 10:00:02.100] Artifact(Pipeline Timing): Pipeline timing | Total: 2.00s",
+            "[2026-01-01 10:00:02.200] Artifact(Image Regeneration Timing): Regeneration timing | Total: 1.00s",
             "[2026-01-01 10:00:03.000] User: What happens next?",
         ].join("\n"),
     );
@@ -165,12 +182,31 @@ test("per-account image preference defaults on and persists scene direction", as
         assert.equal(await service.getPreference(user), true);
         await service.setPreference(user, false);
         assert.equal(await service.getPreference(user), false);
-        await service.recordScenePrompt({
+        const promptRecord = await service.recordScenePrompt({
             user,
             chatId: 5001,
             assistantResponse: "The final story reply.",
             scenePrompt: "cinematic final scene",
         });
+        assert.match(promptRecord.id, /^[0-9a-f-]{36}$/i);
+        assert.equal(
+            (
+                await service.getScenePrompt({
+                    user,
+                    chatId: 5001,
+                    promptId: promptRecord.id,
+                })
+            ).scenePrompt,
+            "cinematic final scene",
+        );
+        assert.equal(
+            await service.getScenePrompt({
+                user,
+                chatId: 9999,
+                promptId: promptRecord.id,
+            }),
+            null,
+        );
 
         const stored = JSON.parse(
             await fs.readFile(
@@ -291,6 +327,156 @@ test("image pipeline restores the text model after image generation fails", asyn
         "unload-image",
         "load-text",
     ]);
+});
+
+test("image regeneration reuses the stored prompt and performs the full model handoff", async () => {
+    const events = [];
+    const pipeline = new ImagePipeline({
+        aiClient: {
+            async unloadModelAndWait() {
+                events.push("unload-text");
+            },
+            async loadModelAndWait() {
+                events.push("load-text");
+            },
+        },
+        sceneDirector: {
+            async createFromAppearanceAndLatestResponse() {
+                throw new Error("scene director must not run during regeneration");
+            },
+        },
+        comfyUIService: {
+            async generate(prompt, seed) {
+                events.push(`generate:${prompt}:${seed}`);
+                return { buffer: Buffer.from("regenerated-image") };
+            },
+            async releaseModelsForTextInference() {
+                events.push("unload-image");
+            },
+        },
+        seedGenerator: () => 84,
+    });
+
+    const result = await pipeline.regenerate({
+        scenePrompt: "the complete stored direction",
+        async onGenerationStart() {
+            events.push("status");
+        },
+        async onImageReady() {
+            events.push("deliver");
+        },
+    });
+
+    assert.deepEqual(events, [
+        "unload-text",
+        "status",
+        "generate:the complete stored direction:84",
+        "deliver",
+        "unload-image",
+        "load-text",
+    ]);
+    assert.equal(result.scenePrompt, "the complete stored direction");
+});
+
+test("regenerate callback retrieves the private prompt and sends a separate photo", async () => {
+    const promptId = "12345678-1234-4234-8234-123456789abc";
+    const scenePrompt = "same stored image direction";
+    const events = [];
+    const artifacts = [];
+    let queuedPromise;
+    let registration;
+
+    registerImageRegenerationHandler(
+        {
+            action(pattern, handler) {
+                registration = { pattern, handler };
+            },
+        },
+        {
+            preferences: {
+                async getScenePrompt(request) {
+                    events.push(`lookup:${request.chatId}:${request.promptId}`);
+                    return { id: promptId, scenePrompt };
+                },
+            },
+            queue: {
+                add(task) {
+                    events.push("queue");
+                    queuedPromise = task();
+                    return { promise: queuedPromise, position: 1, queued: false };
+                },
+            },
+            pipeline: {
+                async regenerate({
+                    scenePrompt: receivedPrompt,
+                    onGenerationStart,
+                    onImageReady,
+                }) {
+                    events.push(`regenerate:${receivedPrompt}`);
+                    await onGenerationStart();
+                    await onImageReady({ buffer: Buffer.from("new-photo") });
+                    return {
+                        timings: {
+                            textModelUnloadMs: 1,
+                            imageStatusMs: 1,
+                            imageGenerationMs: 1,
+                            imageDeliveryMs: 1,
+                            imageModelUnloadMs: 1,
+                            textModelReloadMs: 1,
+                        },
+                    };
+                },
+            },
+            imageGenerationAvailable: true,
+            async artifactWriter(chatId, label, report) {
+                artifacts.push({ chatId, label, report });
+            },
+        },
+    );
+
+    assert.match(`regenerate_image:${promptId}`, registration.pattern);
+    const photos = [];
+    const callbackAnswers = [];
+    const ctx = {
+        chat: { id: 5001 },
+        from: { id: 1001, username: "tester" },
+        match: [`regenerate_image:${promptId}`, promptId],
+        telegram: {},
+        async answerCbQuery(message) {
+            callbackAnswers.push(message);
+        },
+        async reply(message) {
+            events.push(`status:${message}`);
+            return { message_id: 7001 };
+        },
+        async deleteMessage(messageId) {
+            events.push(`delete:${messageId}`);
+        },
+        async sendChatAction(action) {
+            events.push(`action:${action}`);
+        },
+        async replyWithPhoto(photo, options) {
+            photos.push({ photo, options });
+        },
+    };
+
+    await registration.handler(ctx);
+    await queuedPromise;
+
+    assert.deepEqual(callbackAnswers, ["Regenerating image..."]);
+    assert.match(events.join("\n"), /lookup:5001:/);
+    assert.match(events.join("\n"), /regenerate:same stored image direction/);
+    assert.equal(photos.length, 1);
+    assert.match(photos[0].options.caption, /same stored image direction/);
+    assert.equal(
+        photos[0].options.reply_markup.inline_keyboard[0][0].callback_data,
+        `regenerate_image:${promptId}`,
+    );
+    assert.equal(artifacts.length, 1);
+    assert.equal(artifacts[0].chatId, 5001);
+    assert.equal(artifacts[0].label, "Image Regeneration Timing");
+    assert.match(artifacts[0].report, /Image regeneration timing for tester/);
+    assert.doesNotMatch(artifacts[0].report, /\r|\n/);
 });
 
 test("the committed workflow injects prompt, private checkpoint, and seed into a clone", async () => {

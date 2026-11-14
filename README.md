@@ -157,7 +157,9 @@ The image director receives two isolated inputs: the selected character's appear
 
 The Telegram photo caption contains the prompt used by ComfyUI inside an expandable HTML blockquote. Scene prompts are not length-limited before storage or generation; when one exceeds Telegram's fixed photo-caption limit, only the displayed caption becomes a shortened preview. While ComfyUI is working, the bot shows only `Your image is being created...`; that status is removed after the photo arrives.
 
-Before streaming starts, a compact placeholder shows the text model, image model, active personality, and memory state. The first streamed text chunk immediately replaces that placeholder. After the photo is delivered, the console prints per-stage timings for queueing, text preparation/generation/delivery, scene direction, model handoff, image generation/delivery, cleanup, and the full request.
+Every generated photo has a **Regenerate** button. It looks up the complete saved direction for that user and chat, queues a new GPU handoff, unloads the text model, generates a fresh image with a new seed, sends it as a separate photo with the same caption and button, unloads the image model, and restores the text model. The callback contains only a stored prompt ID, never the prompt itself.
+
+Before streaming starts, a compact placeholder shows the text model, image model, active personality, and memory state. The first streamed text chunk immediately replaces that placeholder. After the photo is delivered, Fabrexa prints per-stage timings for queueing, text preparation/generation/delivery, scene direction, model handoff, image generation/delivery, cleanup, and the full request, then stores the same report as a non-conversational artifact in the active session file.
 
 ## Memory
 
@@ -188,6 +190,7 @@ Memory files are stored locally in `chat_memory/` and are ignored by Git.
 | `BOT_PRIVATE` | Restrict the bot to `OWNER_ID` | `true` |
 | `OLLAMA_BASE_URL` | Ollama server address | `http://127.0.0.1:11434` |
 | `OLLAMA_MODEL` | Model used for chat | `gemma3:12b` in `.env.example` |
+| `OLLAMA_KEEP_ALIVE` | Text-model idle retention | `5m` |
 | `IMAGE_GENERATION_AVAILABLE` | Makes automatic images available to users | `true` |
 | `COMFYUI_BASE_URL` | Local ComfyUI server | `http://127.0.0.1:8188` |
 | `COMFYUI_CHECKPOINT_NAME` | Private runtime checkpoint filename | Required for images; keep only in `.env` |

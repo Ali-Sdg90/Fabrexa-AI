@@ -1,3 +1,17 @@
+function createPipelineTimings() {
+    return {
+        sceneDirectionMs: 0,
+        promptPersistenceMs: 0,
+        textModelUnloadMs: 0,
+        imageStatusMs: 0,
+        imageGenerationMs: 0,
+        imageDeliveryMs: 0,
+        imageModelUnloadMs: 0,
+        textModelReloadMs: 0,
+        totalMs: 0,
+    };
+}
+
 export class ImagePipeline {
     constructor({
         aiClient,
@@ -38,17 +52,7 @@ export class ImagePipeline {
         onImageReady,
     }) {
         const pipelineStartedAt = this.now();
-        const timings = {
-            sceneDirectionMs: 0,
-            promptPersistenceMs: 0,
-            textModelUnloadMs: 0,
-            imageStatusMs: 0,
-            imageGenerationMs: 0,
-            imageDeliveryMs: 0,
-            imageModelUnloadMs: 0,
-            textModelReloadMs: 0,
-            totalMs: 0,
-        };
+        const timings = createPipelineTimings();
 
         let phaseStartedAt = this.now();
         const scenePrompt =
@@ -64,7 +68,38 @@ export class ImagePipeline {
         await onPromptReady(scenePrompt);
         timings.promptPersistenceMs = this.now() - phaseStartedAt;
 
-        phaseStartedAt = this.now();
+        return this.#generateFromPrompt({
+            scenePrompt,
+            onGenerationStart,
+            onImageReady,
+            pipelineStartedAt,
+            timings,
+        });
+    }
+
+    async regenerate({ scenePrompt, onGenerationStart, onImageReady }) {
+        const prompt = String(scenePrompt || "").trim();
+        if (!prompt) {
+            throw new TypeError("A stored scene prompt is required.");
+        }
+
+        return this.#generateFromPrompt({
+            scenePrompt: prompt,
+            onGenerationStart,
+            onImageReady,
+            pipelineStartedAt: this.now(),
+            timings: createPipelineTimings(),
+        });
+    }
+
+    async #generateFromPrompt({
+        scenePrompt,
+        onGenerationStart,
+        onImageReady,
+        pipelineStartedAt,
+        timings,
+    }) {
+        let phaseStartedAt = this.now();
         await this.aiClient.unloadModelAndWait();
         timings.textModelUnloadMs = this.now() - phaseStartedAt;
         this.textModelReady = false;
@@ -109,15 +144,20 @@ export class ImagePipeline {
             recoveryError = error;
         }
 
-        if (primaryError) throw primaryError;
+        timings.totalMs = this.now() - pipelineStartedAt;
+        const frozenTimings = Object.freeze(timings);
+        if (primaryError) {
+            primaryError.imageDelivered = imageDelivered;
+            primaryError.pipelineTimings = frozenTimings;
+            if (recoveryError) primaryError.recoveryError = recoveryError;
+            throw primaryError;
+        }
         if (recoveryError) {
-            timings.totalMs = this.now() - pipelineStartedAt;
             recoveryError.imageDelivered = imageDelivered;
-            recoveryError.pipelineTimings = Object.freeze(timings);
+            recoveryError.pipelineTimings = frozenTimings;
             throw recoveryError;
         }
-        timings.totalMs = this.now() - pipelineStartedAt;
-        return { ...result, scenePrompt, timings: Object.freeze(timings) };
+        return { ...result, scenePrompt, timings: frozenTimings };
     }
 }
 

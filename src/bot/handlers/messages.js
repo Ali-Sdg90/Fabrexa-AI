@@ -34,8 +34,13 @@ import { ImageQueueFullError } from "../../image/errors.js";
 import {
     IMAGE_BUILDING_MESSAGE,
     buildImageCaption,
+    buildRegenerateImageKeyboard,
     imageGenerationErrorMessage,
 } from "../../image/telegram.js";
+import {
+    buildPipelineTimingReport,
+    compactTimingReport,
+} from "../../image/timing.js";
 import { getPendingMemoryEdit, deletePendingMemoryEdit } from "./actions.js";
 
 const STREAM_EDIT_DELAY_SEQUENCE_MS = [
@@ -83,11 +88,8 @@ export function buildProcessingMessage({
     ].join("\n");
 }
 
-function formatSeconds(milliseconds) {
-    return `${(Math.max(0, milliseconds || 0) / 1000).toFixed(2)}s`;
-}
-
-function logPipelineTimings({
+async function logPipelineTimings({
+    chatId,
     username,
     userId,
     messageTimings,
@@ -95,28 +97,24 @@ function logPipelineTimings({
     totalToPhotoMs,
     totalWithCleanupMs,
 }) {
-    console.log(
-        [
-            `⏱️ Pipeline timing for ${username} (${userId})`,
-            `   Request setup: ${formatSeconds(messageTimings.requestSetupMs)}`,
-            `   Queue wait: ${formatSeconds(messageTimings.queueWaitMs)}`,
-            `   Text-model preparation: ${formatSeconds(messageTimings.textModelPreparationMs)}`,
-            `   Context and memory: ${formatSeconds(messageTimings.contextPreparationMs)}`,
-            `   Text generation: ${formatSeconds(messageTimings.textGenerationMs)}`,
-            `   Text delivery: ${formatSeconds(messageTimings.textDeliveryMs)}`,
-            `   Scene direction: ${formatSeconds(imageTimings.sceneDirectionMs)}`,
-            `   Prompt persistence: ${formatSeconds(imageTimings.promptPersistenceMs)}`,
-            `   Text-model unload: ${formatSeconds(imageTimings.textModelUnloadMs)}`,
-            `   Image status: ${formatSeconds(imageTimings.imageStatusMs)}`,
-            `   Image generation: ${formatSeconds(imageTimings.imageGenerationMs)}`,
-            `   Image delivery: ${formatSeconds(imageTimings.imageDeliveryMs)}`,
-            `   Image-model unload: ${formatSeconds(imageTimings.imageModelUnloadMs)}`,
-            `   Text-model reload: ${formatSeconds(imageTimings.textModelReloadMs)}`,
-            `   Image pipeline total: ${formatSeconds(imageTimings.totalMs)}`,
-            `   Total until photo: ${formatSeconds(totalToPhotoMs)}`,
-            `   Total with cleanup: ${formatSeconds(totalWithCleanupMs)}`,
-        ].join("\n"),
-    );
+    const report = buildPipelineTimingReport({
+        username,
+        userId,
+        messageTimings,
+        imageTimings,
+        totalToPhotoMs,
+        totalWithCleanupMs,
+    });
+    console.log(report);
+    try {
+        await appendChatArtifact(
+            chatId,
+            "Pipeline Timing",
+            compactTimingReport(report),
+        );
+    } catch (error) {
+        console.warn("⚠️ Could not save pipeline timing to the session:", error.message);
+    }
 }
 
 function splitTelegramMessage(text) {
@@ -189,6 +187,7 @@ async function sendAutomaticImage(
 ) {
     let imageStatusMessage = null;
     let caption = "";
+    let regenerationPromptId = null;
     let photoDeliveredAt = null;
 
     try {
@@ -202,12 +201,13 @@ async function sendAutomaticImage(
                     "Scene Director",
                     scenePrompt,
                 );
-                await imagePreferences.recordScenePrompt({
+                const promptRecord = await imagePreferences.recordScenePrompt({
                     user: ctx.from,
                     chatId: ctx.chat.id,
                     assistantResponse: response,
                     scenePrompt,
                 });
+                regenerationPromptId = promptRecord.id;
             },
             onGenerationStart: async () => {
                 imageStatusMessage = await ctx.reply(IMAGE_BUILDING_MESSAGE);
@@ -222,7 +222,11 @@ async function sendAutomaticImage(
                 );
                 await ctx.replyWithPhoto(
                     { source: buffer },
-                    { caption, parse_mode: "HTML" },
+                    {
+                        caption,
+                        parse_mode: "HTML",
+                        ...buildRegenerateImageKeyboard(regenerationPromptId),
+                    },
                 );
                 photoDeliveredAt = Date.now();
             },
@@ -364,7 +368,8 @@ async function processConversation({
             userId,
         );
         if (imageResult?.photoDeliveredAt) {
-            logPipelineTimings({
+            await logPipelineTimings({
+                chatId: ctx.chat.id,
                 username,
                 userId,
                 messageTimings,
