@@ -8,6 +8,8 @@ import {
     quickKeyboard,
     buildPersonalityMenu,
     buildMemoryKeyboard,
+    buildImageSettingsKeyboard,
+    imageSettingsMessage,
 } from "../utils/keyboards.js";
 import {
     createNewChatSession,
@@ -17,6 +19,8 @@ import {
 } from "../../memory/index.js";
 import { PERSONALITIES } from "../../personalities/index.js";
 import { getMemoryAccessLabel, hasMemoryAccess } from "../../memory/access.js";
+import { IMAGE_GENERATION_AVAILABLE } from "../../config/index.js";
+import { imagePreferences } from "../../image/runtime.js";
 
 async function getCurrentPersonality(chatId) {
     const chatState = await getChatState(chatId);
@@ -60,6 +64,15 @@ function formatMemoryList(memoryEntries) {
 }
 
 export function registerQuickActionHandlers(bot) {
+    bot.hears([BUTTONS.imageSettings, "Image Settings"], async (ctx) => {
+        if (!isOwner(ctx)) return replyNotOwner(ctx);
+        const enabled = await imagePreferences.getPreference(ctx.from);
+        await ctx.reply(
+            imageSettingsMessage(enabled, IMAGE_GENERATION_AVAILABLE),
+            buildImageSettingsKeyboard(enabled, IMAGE_GENERATION_AVAILABLE),
+        );
+    });
+
     bot.hears([BUTTONS.newChat, "New Chat"], async (ctx) => {
         if (!isOwner(ctx)) return replyNotOwner(ctx);
         await createNewChatSession(ctx.chat.id);

@@ -4,6 +4,7 @@
  */
 
 import dotenv from "dotenv";
+import path from "node:path";
 
 dotenv.config({ path: ".env" });
 
@@ -27,6 +28,44 @@ function readBoolean(name, fallback) {
 
 function trimTrailingSlash(value) {
     return value.replace(/\/+$/, "");
+}
+
+function readLoopbackHttpUrl(name, fallback) {
+    const rawValue = process.env[name]?.trim() || fallback;
+    let url;
+    try {
+        url = new URL(rawValue);
+    } catch {
+        throw new Error(`${name} must be a valid URL.`);
+    }
+    if (
+        url.protocol !== "http:" ||
+        !new Set(["127.0.0.1", "localhost", "[::1]"]).has(url.hostname) ||
+        url.username ||
+        url.password ||
+        !["", "/"].includes(url.pathname)
+    ) {
+        throw new Error(
+            `${name} must be an HTTP loopback URL without credentials or a path.`,
+        );
+    }
+    return trimTrailingSlash(url.toString());
+}
+
+function parseAdditionalSeedMappings(value) {
+    if (!value?.trim()) return [];
+
+    return value.split(",").map((mapping) => {
+        const [nodeId, inputName, ...extra] = mapping
+            .split(":")
+            .map((part) => part.trim());
+        if (!nodeId || !inputName || extra.length > 0) {
+            throw new Error(
+                "COMFYUI_ADDITIONAL_SEED_MAPPINGS must use comma-separated nodeId:inputName pairs.",
+            );
+        }
+        return Object.freeze({ nodeId, inputName });
+    });
 }
 
 // Telegram configuration
@@ -61,8 +100,8 @@ export const OLLAMA_MODEL =
     process.env.AI_MODEL?.trim() ||
     process.env.MODEL?.trim() ||
     "llama3.1";
-export const OLLAMA_ANALYZER_MODEL =
-    process.env.OLLAMA_ANALYZER_MODEL?.trim() || OLLAMA_MODEL;
+// Chat, memory analysis, and scene direction intentionally share one text model.
+export const OLLAMA_ANALYZER_MODEL = OLLAMA_MODEL;
 export const OLLAMA_KEEP_ALIVE = process.env.OLLAMA_KEEP_ALIVE?.trim() || "10m";
 export const OLLAMA_NUM_CTX = readNumber("OLLAMA_NUM_CTX", 8192);
 export const OLLAMA_TEMPERATURE = readNumber("OLLAMA_TEMPERATURE", 0.8);
@@ -115,6 +154,117 @@ export const TELEGRAM_STREAM_EDIT_INTERVAL_MS = readNumber(
     "TELEGRAM_STREAM_EDIT_INTERVAL_MS",
     6000,
 );
+
+// Optional image continuation. It is enabled for every personality by default,
+// while each Telegram account can persistently opt out.
+export const IMAGE_GENERATION_AVAILABLE = readBoolean(
+    "IMAGE_GENERATION_AVAILABLE",
+    true,
+);
+export const IMAGE_GENERATION_DEFAULT_ENABLED = readBoolean(
+    "IMAGE_GENERATION_DEFAULT_ENABLED",
+    true,
+);
+export const IMAGE_GENERATION_QUEUE_MAX_SIZE = Math.floor(
+    readNumber("IMAGE_GENERATION_QUEUE_MAX_SIZE", 5),
+);
+export const IMAGE_SCENE_DIRECTOR_PROMPT_PATH = path.resolve(
+    process.env.IMAGE_SCENE_DIRECTOR_PROMPT_PATH?.trim() ||
+        "src/image/scene-director.txt",
+);
+export const IMAGE_USER_DATA_DIR = path.resolve(
+    CHAT_MEMORY_DIR,
+    "users",
+);
+export const IMAGE_USER_PROMPT_HISTORY_LIMIT = Math.floor(
+    readNumber("IMAGE_USER_PROMPT_HISTORY_LIMIT", 50),
+);
+
+export const OLLAMA_HANDOFF_TIMEOUT_MS = readNumber(
+    "OLLAMA_HANDOFF_TIMEOUT_MS",
+    30000,
+);
+export const OLLAMA_HANDOFF_POLL_INTERVAL_MS = readNumber(
+    "OLLAMA_HANDOFF_POLL_INTERVAL_MS",
+    500,
+);
+export const IMAGE_DIRECTOR_TEMPERATURE = readNumber(
+    "IMAGE_DIRECTOR_TEMPERATURE",
+    0.35,
+);
+export const IMAGE_DIRECTOR_TOP_P = readNumber("IMAGE_DIRECTOR_TOP_P", 0.9);
+export const IMAGE_DIRECTOR_MAX_TOKENS = Math.floor(
+    readNumber("IMAGE_DIRECTOR_MAX_TOKENS", 700),
+);
+
+export const COMFYUI_BASE_URL = readLoopbackHttpUrl(
+    "COMFYUI_BASE_URL",
+    "http://127.0.0.1:8188",
+);
+export const COMFYUI_WORKFLOW_PATH = path.resolve(
+    process.env.COMFYUI_WORKFLOW_PATH?.trim() ||
+        "src/image/workflow_api.json",
+);
+export const COMFYUI_CHECKPOINT_NAME =
+    process.env.COMFYUI_CHECKPOINT_NAME?.trim() || "";
+export const COMFYUI_POLL_INTERVAL_MS = readNumber(
+    "COMFYUI_POLL_INTERVAL_MS",
+    2000,
+);
+export const COMFYUI_TIMEOUT_MS = readNumber("COMFYUI_TIMEOUT_MS", 240000);
+export const COMFYUI_REQUEST_TIMEOUT_MS = readNumber(
+    "COMFYUI_REQUEST_TIMEOUT_MS",
+    10000,
+);
+export const COMFYUI_IDLE_TIMEOUT_MS = readNumber(
+    "COMFYUI_IDLE_TIMEOUT_MS",
+    300000,
+);
+export const COMFYUI_CLEANUP_TIMEOUT_MS = readNumber(
+    "COMFYUI_CLEANUP_TIMEOUT_MS",
+    30000,
+);
+export const COMFYUI_CLEANUP_POLL_INTERVAL_MS = readNumber(
+    "COMFYUI_CLEANUP_POLL_INTERVAL_MS",
+    1000,
+);
+export const COMFYUI_CLEANUP_MIN_RELEASE_BYTES =
+    readNonNegativeInteger("COMFYUI_CLEANUP_MIN_RELEASE_MB", 64) *
+    1024 *
+    1024;
+export const COMFYUI_CLEANUP_FREE_RATIO = Math.min(
+    1,
+    readNumber("COMFYUI_CLEANUP_FREE_RATIO", 0.7),
+);
+export const COMFYUI_CLEANUP_STABLE_SAMPLES = Math.floor(
+    readNumber("COMFYUI_CLEANUP_STABLE_SAMPLES", 2),
+);
+export const COMFYUI_POSITIVE_PROMPT_NODE_ID =
+    process.env.COMFYUI_POSITIVE_PROMPT_NODE_ID?.trim() || "67";
+export const COMFYUI_POSITIVE_PROMPT_INPUT =
+    process.env.COMFYUI_POSITIVE_PROMPT_INPUT?.trim() || "text";
+export const COMFYUI_CHECKPOINT_NODE_ID =
+    process.env.COMFYUI_CHECKPOINT_NODE_ID?.trim() || "73";
+export const COMFYUI_CHECKPOINT_INPUT =
+    process.env.COMFYUI_CHECKPOINT_INPUT?.trim() || "ckpt_name";
+export const COMFYUI_SEED_NODE_ID =
+    process.env.COMFYUI_SEED_NODE_ID?.trim() || "94";
+export const COMFYUI_SEED_INPUT =
+    process.env.COMFYUI_SEED_INPUT?.trim() || "seed";
+export const COMFYUI_ADDITIONAL_SEED_MAPPINGS = parseAdditionalSeedMappings(
+    process.env.COMFYUI_ADDITIONAL_SEED_MAPPINGS,
+);
+export const COMFYUI_SAVE_IMAGE_NODE_ID =
+    process.env.COMFYUI_SAVE_IMAGE_NODE_ID?.trim() || "84";
+
+export const IMAGE_GENERATION_SETTINGS = Object.freeze({
+    width: 896,
+    height: 1152,
+    steps: 8,
+    cfg: 1.1,
+    sampler: "LCM",
+    scheduler: "Karras",
+});
 export const MEMORY_PROCESSOR_CRON =
     process.env.MEMORY_PROCESSOR_CRON?.trim() || "0 0 * * *";
 export const MEMORY_PROCESSOR_TIMEZONE =

@@ -12,6 +12,10 @@ import {
 } from "../config/index.js";
 import { ensureMemoryDirectory } from "../memory/index.js";
 import { startMemoryProcessorScheduler } from "../memory/processor.js";
+import {
+    conversationQueue,
+    initializeImageRuntime,
+} from "../image/runtime.js";
 import { registerCommandHandlers } from "./handlers/commands.js";
 import { registerActionHandlers } from "./handlers/actions.js";
 import { registerQuickActionHandlers } from "./handlers/quickActions.js";
@@ -51,7 +55,10 @@ export async function startBot() {
         });
 
         await ensureMemoryDirectory();
-        startMemoryProcessorScheduler();
+        await initializeImageRuntime();
+        startMemoryProcessorScheduler({
+            taskRunner: (task) => conversationQueue.add(task).promise,
+        });
 
         const tokenLength = TELEGRAM_BOT_TOKEN?.length || 0;
 
@@ -74,7 +81,7 @@ export async function startBot() {
             { command: "start", description: "Start Fabrexa" },
         ]);
 
-        await bot.launch();
+        await bot.launch({ allowedUpdates: ["message", "callback_query"] });
     } catch (error) {
         console.error(`💥 Critical error: ${error.message}`);
         if (error.response) {

@@ -2,7 +2,7 @@
 
 <img src="./public/images/og-image.jpg" alt="Fabrexa AI Ollama" width="100%" />
 
-Fabrexa is a self-hosted Telegram bot for chatting with an LLM running through Ollama on your own computer.
+Fabrexa is a self-hosted Telegram bot for chatting with an LLM through Ollama and optionally turning each completed reply into a locally generated image through ComfyUI.
 
 It gives a local model a familiar chat interface, streams replies as they are generated, supports custom personalities, and can keep short-term and long-term memory for the personalities you choose.
 
@@ -19,6 +19,8 @@ It gives a local model a familiar chat interface, streams replies as they are ge
 - Supports plain-text personality prompts
 - Provides optional short-term and long-term memory
 - Lets the user view, edit, or remove saved long-term memories
+- Directs one image from only the latest AI reply, then sends it with a collapsed prompt caption
+- Lets each Telegram account disable or re-enable automatic images
 - Runs in private owner-only mode by default
 
 Telegram still carries messages between you and the bot. Model inference and Fabrexa's conversation files stay on the machine running the project.
@@ -47,16 +49,21 @@ Fabrexa
    └── allowed long-term memory
    ↓
 Ollama on your computer
-   ↓
-Streamed reply in Telegram
+   ├── streamed reply in Telegram
+   └── character appearance from personality + scene from final reply
+           ↓
+       ComfyUI image
+           ↓
+       Telegram photo + collapsed direction prompt
 ```
 
-Fabrexa sends the active personality prompt, up to 24 recent conversation messages, optional long-term memory, and the new message to Ollama. Recent history has an approximate 4096-token budget and is shortened from the oldest message when needed so the prompt and reply still fit the configured context window. The response is then streamed back to Telegram.
+Fabrexa sends the active personality prompt, up to 24 recent conversation messages, optional long-term memory, and the new message to Ollama. Recent history has an approximate 4096-token budget and is shortened from the oldest message when needed so the prompt and reply still fit the configured context window. The response is streamed back to Telegram. When automatic images are enabled, the same text model directs one still image using character appearance from the selected personality prompt and scene direction from the completed assistant response. Fabrexa records the direction, unloads the text model, runs the local ComfyUI workflow, sends the photo, unloads the image model, and preloads the text model again.
 
 ## Requirements
 
 - [Node.js 22+](https://nodejs.org/)
 - [Ollama](https://ollama.com/)
+- [ComfyUI](https://github.com/comfyanonymous/ComfyUI) running locally when automatic images are available
 - A bot token created with [@BotFather](https://t.me/botfather)
 - Your numeric Telegram user ID when private mode is enabled
 - Your public Telegram username when private mode is enabled
@@ -109,7 +116,10 @@ OWNER_ID=your_numeric_telegram_id
 OWNER_USERNAME=your_telegram_username
 BOT_PRIVATE=true
 OLLAMA_MODEL=gemma3:12b
+COMFYUI_CHECKPOINT_NAME=your-local-checkpoint-file.safetensors
 ```
+
+Start local ComfyUI with the workflow's required core nodes available. Keep the checkpoint filename only in `.env`; the committed workflow deliberately leaves it blank. To run text-only while postponing ComfyUI setup, set `IMAGE_GENERATION_AVAILABLE=false`.
 
 Never commit `.env` or share your Telegram bot token.
 
@@ -130,13 +140,24 @@ Open the bot in Telegram, send `/start`, and type a message.
 
 ## Using the bot
 
-Fabrexa responds to normal text messages and provides three quick actions:
+Fabrexa responds to normal text messages and provides four quick actions:
 
 | Action | Purpose |
 | --- | --- |
 | **New Chat** | Starts a new conversation without deleting long-term memory |
 | **Change Personality** | Selects another prompt and starts a new conversation |
 | **Show Memory** | Shows editable long-term memories for the active personality |
+| **Image Settings** | Enables or disables automatic images for that Telegram account |
+
+## Automatic images
+
+Automatic images are enabled by default for every personality. The preference is stored per Telegram user, so changing personalities or starting a new chat does not reset it.
+
+The image director receives two isolated inputs: the selected personality's system prompt only as a source of stated facial, bodily, hair, clothing, and other stable appearance traits; and the final assistant reply only as the source of the scene, action, pose, expression, and setting. It does not receive the user's message, earlier history, or long-term memory. The assistant character is kept as the dominant subject, while the user is omitted unless the final reply requires the user's physical presence. The generated direction is saved both as a non-conversational session artifact and under `chat_memory/users/<telegram-id>/image-generation.json`; artifacts are deliberately excluded from later chat context.
+
+The Telegram photo caption contains the prompt used by ComfyUI inside an expandable HTML blockquote. Scene prompts are not length-limited before storage or generation; when one exceeds Telegram's fixed photo-caption limit, only the displayed caption becomes a shortened preview. While ComfyUI is working, the bot shows only `Your image is being created...`; that status is removed after the photo arrives.
+
+Before streaming starts, a compact placeholder shows the text model, image model, active personality, and memory state. The first streamed text chunk immediately replaces that placeholder. After the photo is delivered, the console prints per-stage timings for queueing, text preparation/generation/delivery, scene direction, model handoff, image generation/delivery, cleanup, and the full request.
 
 ## Memory
 
@@ -167,7 +188,9 @@ Memory files are stored locally in `chat_memory/` and are ignored by Git.
 | `BOT_PRIVATE` | Restrict the bot to `OWNER_ID` | `true` |
 | `OLLAMA_BASE_URL` | Ollama server address | `http://127.0.0.1:11434` |
 | `OLLAMA_MODEL` | Model used for chat | `gemma3:12b` in `.env.example` |
-| `OLLAMA_ANALYZER_MODEL` | Optional model used for memory analysis | Main chat model |
+| `IMAGE_GENERATION_AVAILABLE` | Makes automatic images available to users | `true` |
+| `COMFYUI_BASE_URL` | Local ComfyUI server | `http://127.0.0.1:8188` |
+| `COMFYUI_CHECKPOINT_NAME` | Private runtime checkpoint filename | Required for images; keep only in `.env` |
 | `OLLAMA_NUM_CTX` | Context window | `8192` |
 | `OLLAMA_MAX_TOKENS` | Maximum generated tokens | `2048` |
 | `OLLAMA_MIN_RESPONSE_WORDS` | Minimum combined response length; `0` disables continuation | `250` |
@@ -191,7 +214,7 @@ npm test                # Run the focused automated tests
 npm run memory-process  # Process short-term memory manually
 ```
 
-`npm run check` runs lint, the focused tests, and `npm run check:setup`. The setup check confirms that the local requirements, environment values, Ollama server, and selected model are available. It does not contact Telegram to validate the bot token. A success message is printed only after every check passes.
+`npm run check` runs lint, the focused tests, and `npm run check:setup`. The setup check confirms that the local requirements, environment values, Ollama server, selected text model, private ComfyUI checkpoint setting, workflow files, and ComfyUI queue are available. It does not contact Telegram to validate the bot token or run a real generation. A success message is printed only after every check passes.
 
 ## Project structure
 
@@ -200,6 +223,7 @@ src/
 ├── ai/              # Ollama request and streaming client
 ├── bot/             # Telegram handlers, actions, and access control
 ├── config/          # Environment configuration
+├── image/           # Scene direction, ComfyUI, GPU handoff, queue, and user image settings
 ├── memory/          # Conversation, short-term, and long-term memory
 └── personalities/   # Personality file loader
 

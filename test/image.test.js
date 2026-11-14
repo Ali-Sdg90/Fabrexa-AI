@@ -1,0 +1,340 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import path from "node:path";
+
+process.env.TELEGRAM_BOT_TOKEN = "test-token";
+process.env.OWNER_ID = "1001";
+process.env.OWNER_USERNAME = "fabrexa_owner";
+process.env.BOT_PRIVATE = "true";
+process.env.LOG_MODE = "normal";
+
+const { default: AIClient } = await import("../src/ai/client.js");
+const { OLLAMA_ANALYZER_MODEL, OLLAMA_MODEL } = await import(
+    "../src/config/index.js"
+);
+const {
+    cloneAndInjectWorkflow,
+    validateWorkflowMappings,
+} = await import("../src/image/comfyui.js");
+const { ImagePipeline } = await import("../src/image/pipeline.js");
+const { ImagePreferenceService } = await import(
+    "../src/image/preferences.js"
+);
+const { SerialTaskQueue } = await import("../src/image/queue.js");
+const { normalizeScenePrompt } = await import(
+    "../src/image/sceneDirector.js"
+);
+const { buildImageCaption } = await import("../src/image/telegram.js");
+const { parseSessionHistory } = await import("../src/memory/index.js");
+
+test("scene direction separates character appearance from the latest reply scene", async () => {
+    let request;
+    const client = new AIClient({
+        httpClient: {
+            async post(url, payload) {
+                request = { url, payload };
+                return { data: { message: { content: "directed scene" } } };
+            },
+        },
+    });
+
+    const result = await client.generateScenePrompt(
+        "LATEST ASSISTANT RESPONSE",
+        "SCENE DIRECTOR SYSTEM PROMPT",
+        "CHARACTER HAS SILVER HAIR AND GREEN EYES",
+    );
+
+    assert.equal(result, "directed scene");
+    assert.equal(request.payload.model, client.model);
+    assert.deepEqual(
+        request.payload.messages.map((message) => message.role),
+        ["system", "user"],
+    );
+    assert.match(
+        request.payload.messages[0].content,
+        /CHARACTER HAS SILVER HAIR AND GREEN EYES/,
+    );
+    assert.match(request.payload.messages[0].content, /only stated visual identity/i);
+    assert.match(request.payload.messages[1].content, /LATEST ASSISTANT RESPONSE/);
+    assert.doesNotMatch(request.payload.messages[1].content, /SILVER HAIR/);
+    assert.doesNotMatch(request.payload.messages[1].content, /conversation history content/);
+});
+
+test("chat, memory analysis, and scene direction share one text model", () => {
+    assert.equal(OLLAMA_ANALYZER_MODEL, OLLAMA_MODEL);
+});
+
+test("Ollama handoff actively unloads and reloads the configured text model", async () => {
+    const posts = [];
+    let runningModels = [{ name: OLLAMA_MODEL }];
+    const client = new AIClient({
+        httpClient: {
+            async get() {
+                return { data: { models: runningModels } };
+            },
+            async post(url, payload) {
+                posts.push({ url, payload });
+                runningModels = payload.keep_alive === 0 ? [] : [{ name: OLLAMA_MODEL }];
+                return { data: {} };
+            },
+        },
+    });
+
+    await client.unloadModelAndWait();
+    await client.loadModelAndWait();
+
+    assert.equal(posts[0].payload.keep_alive, 0);
+    assert.equal(posts[1].payload.model, OLLAMA_MODEL);
+    assert.notEqual(posts[1].payload.keep_alive, 0);
+});
+
+test("scene prompt normalization produces one unrestricted paragraph", () => {
+    assert.equal(
+        normalizeScenePrompt('```text\nPrompt: cinematic   scene\nwith rain\n```'),
+        "cinematic scene with rain",
+    );
+    assert.equal(normalizeScenePrompt("x".repeat(5000)).length, 5000);
+    assert.equal(
+        normalizeScenePrompt(
+            "score_9, score_8_up, masterpiece, best quality, photorealistic, cinematic photography, silver-haired woman, no text, no logo",
+        ),
+        "silver-haired woman",
+    );
+});
+
+test("photo caption uses an expandable Telegram blockquote and escapes HTML", () => {
+    const caption = buildImageCaption("woman < window & rain > street");
+    assert.match(caption, /<blockquote expandable>/);
+    assert.match(caption, /&lt; window &amp; rain &gt;/);
+    assert.ok(caption.length <= 1024);
+});
+
+test("long scene prompts stay intact for generation and use a safe caption preview", () => {
+    const scenePrompt = `woman < rain & neon > ${"detailed scene ".repeat(200)}`;
+    const normalizedPrompt = normalizeScenePrompt(scenePrompt);
+    const caption = buildImageCaption(normalizedPrompt);
+
+    assert.equal(normalizedPrompt, scenePrompt.trim().replace(/\s+/g, " "));
+    assert.ok(normalizedPrompt.length > 1024);
+    assert.ok(caption.length <= 1024);
+    assert.match(caption, /<blockquote expandable>/);
+    assert.match(caption, /&lt; rain &amp; neon &gt;/);
+    assert.match(caption, /…<\/blockquote>$/);
+});
+
+test("scene-director artifacts stay in logs but out of conversation context", () => {
+    const history = parseSessionHistory(
+        [
+            "[2026-01-01 10:00:00.000] User: Continue the story",
+            "[2026-01-01 10:00:01.000] Friendly: The door opens.",
+            "[2026-01-01 10:00:02.000] Artifact(Scene Director): cinematic doorway",
+            "[2026-01-01 10:00:03.000] User: What happens next?",
+        ].join("\n"),
+    );
+
+    assert.deepEqual(history, [
+        { role: "user", content: "Continue the story" },
+        { role: "assistant", content: "The door opens." },
+        { role: "user", content: "What happens next?" },
+    ]);
+});
+
+test("per-account image preference defaults on and persists scene direction", async () => {
+    const rootDirectory = path.join(
+        "chat_memory",
+        `test-image-preferences-${process.pid}`,
+    );
+    const service = new ImagePreferenceService({
+        rootDirectory,
+        defaultEnabled: true,
+        promptHistoryLimit: 2,
+    });
+    const user = { id: 1001, username: "tester" };
+
+    try {
+        await service.initialize();
+        assert.equal(await service.getPreference(user), true);
+        await service.setPreference(user, false);
+        assert.equal(await service.getPreference(user), false);
+        await service.recordScenePrompt({
+            user,
+            chatId: 5001,
+            assistantResponse: "The final story reply.",
+            scenePrompt: "cinematic final scene",
+        });
+
+        const stored = JSON.parse(
+            await fs.readFile(
+                path.join(rootDirectory, "1001", "image-generation.json"),
+                "utf8",
+            ),
+        );
+        assert.equal(stored.imageGenerationEnabled, false);
+        assert.equal(
+            stored.scenePrompts[0].source,
+            "character_system_appearance_and_latest_reply_scene",
+        );
+        assert.equal(stored.scenePrompts[0].scenePrompt, "cinematic final scene");
+        assert.equal(stored.scenePrompts[0].assistantResponse, "The final story reply.");
+    } finally {
+        await fs.rm(rootDirectory, { recursive: true, force: true });
+    }
+});
+
+test("image pipeline preserves the required model handoff order", async () => {
+    const events = [];
+    const pipeline = new ImagePipeline({
+        aiClient: {
+            async unloadModelAndWait() {
+                events.push("unload-text");
+            },
+            async loadModelAndWait() {
+                events.push("load-text");
+            },
+        },
+        sceneDirector: {
+            async createFromCharacterAndLatestResponse(value, characterPrompt) {
+                events.push(`direct:${value}:${characterPrompt}`);
+                return "directed prompt";
+            },
+        },
+        comfyUIService: {
+            async generate(prompt, seed) {
+                events.push(`generate:${prompt}:${seed}`);
+                return { buffer: Buffer.from("image") };
+            },
+            async releaseModelsForTextInference() {
+                events.push("unload-image");
+            },
+        },
+        seedGenerator: () => 42,
+    });
+
+    const result = await pipeline.run({
+        latestAssistantResponse: "latest only",
+        characterSystemPrompt: "silver hair",
+        async onPromptReady(prompt) {
+            events.push(`persist:${prompt}`);
+        },
+        async onGenerationStart() {
+            events.push("status");
+        },
+        async onImageReady() {
+            events.push("deliver");
+        },
+    });
+
+    assert.deepEqual(events, [
+        "direct:latest only:silver hair",
+        "persist:directed prompt",
+        "unload-text",
+        "status",
+        "generate:directed prompt:42",
+        "deliver",
+        "unload-image",
+        "load-text",
+    ]);
+    for (const value of Object.values(result.timings)) {
+        assert.ok(Number.isFinite(value) && value >= 0);
+    }
+});
+
+test("image pipeline restores the text model after image generation fails", async () => {
+    const events = [];
+    const pipeline = new ImagePipeline({
+        aiClient: {
+            async unloadModelAndWait() {
+                events.push("unload-text");
+            },
+            async loadModelAndWait() {
+                events.push("load-text");
+            },
+        },
+        sceneDirector: {
+            async createFromCharacterAndLatestResponse() {
+                return "directed prompt";
+            },
+        },
+        comfyUIService: {
+            async generate() {
+                events.push("generate-failed");
+                throw new Error("generation failed");
+            },
+            async releaseModelsForTextInference() {
+                events.push("unload-image");
+            },
+        },
+        seedGenerator: () => 42,
+    });
+
+    await assert.rejects(
+        pipeline.run({
+            latestAssistantResponse: "latest only",
+            async onPromptReady() {},
+            async onGenerationStart() {},
+            async onImageReady() {},
+        }),
+        /generation failed/,
+    );
+    assert.deepEqual(events, [
+        "unload-text",
+        "generate-failed",
+        "unload-image",
+        "load-text",
+    ]);
+});
+
+test("the committed workflow injects prompt, private checkpoint, and seed into a clone", async () => {
+    const workflow = JSON.parse(
+        await fs.readFile("src/image/workflow_api.json", "utf8"),
+    );
+    const mappings = {
+        positivePromptNodeId: "67",
+        positivePromptInput: "text",
+        checkpointNodeId: "73",
+        checkpointInput: "ckpt_name",
+        seedNodeId: "94",
+        seedInput: "seed",
+        additionalSeedMappings: [],
+        saveImageNodeId: "84",
+    };
+
+    assert.equal(workflow["73"].inputs.ckpt_name, "");
+    assert.equal(workflow["84"].inputs.filename_prefix, "cyberpony");
+    assert.equal(validateWorkflowMappings(workflow, mappings), true);
+    const injected = cloneAndInjectWorkflow(workflow, mappings, {
+        prompt: "directed prompt",
+        seed: 123,
+        checkpointName: "private-runtime-checkpoint",
+    });
+    assert.equal(injected["67"].inputs.text, "directed prompt");
+    assert.equal(injected["73"].inputs.ckpt_name, "private-runtime-checkpoint");
+    assert.equal(injected["94"].inputs.seed, 123);
+    assert.equal(workflow["73"].inputs.ckpt_name, "");
+});
+
+test("conversation queue runs model-sensitive jobs serially", async () => {
+    const queue = new SerialTaskQueue({ maxSize: 3 });
+    const events = [];
+    let releaseFirst;
+    const firstGate = new Promise((resolve) => {
+        releaseFirst = resolve;
+    });
+
+    const first = queue.add(async () => {
+        events.push("first-start");
+        await firstGate;
+        events.push("first-end");
+    });
+    const second = queue.add(async () => {
+        events.push("second-start");
+    });
+
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(events, ["first-start"]);
+    releaseFirst();
+    await Promise.all([first.promise, second.promise]);
+    assert.deepEqual(events, ["first-start", "first-end", "second-start"]);
+});
+

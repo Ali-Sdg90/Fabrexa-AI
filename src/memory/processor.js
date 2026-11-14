@@ -255,7 +255,10 @@ export async function processAllMemories({ notifier = null } = {}) {
     }
 }
 
-export function startMemoryProcessorScheduler({ notifier = null } = {}) {
+export function startMemoryProcessorScheduler({
+    notifier = null,
+    taskRunner = (task) => task(),
+} = {}) {
     if (schedulerTask) return schedulerTask;
 
     if (!cron.validate(MEMORY_PROCESSOR_CRON)) {
@@ -267,12 +270,16 @@ export function startMemoryProcessorScheduler({ notifier = null } = {}) {
     schedulerTask = cron.schedule(
         MEMORY_PROCESSOR_CRON,
         () => {
-            processAllMemories({ notifier }).catch((error) => {
-                console.error(
-                    "🧠❌ Scheduled memory processing failed:",
-                    error.message,
-                );
-            });
+            Promise.resolve()
+                .then(() =>
+                    taskRunner(() => processAllMemories({ notifier })),
+                )
+                .catch((error) => {
+                    console.error(
+                        "🧠❌ Scheduled memory processing failed:",
+                        error.message,
+                    );
+                });
         },
         {
             timezone: MEMORY_PROCESSOR_TIMEZONE,

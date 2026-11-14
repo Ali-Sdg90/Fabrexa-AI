@@ -391,7 +391,12 @@ export async function listMemoryChatIds() {
     if (!existsSync(memoryRoot)) return [];
     const entries = await fs.readdir(memoryRoot, { withFileTypes: true });
     return entries
-        .filter((entry) => entry.isDirectory() && entry.name !== "smart")
+        .filter(
+            (entry) =>
+                entry.isDirectory() &&
+                entry.name !== "smart" &&
+                entry.name !== "users",
+        )
         .map((entry) => entry.name);
 }
 

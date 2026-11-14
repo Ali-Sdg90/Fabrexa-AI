@@ -4,7 +4,7 @@ This guide covers Fabrexa's runtime structure, configuration, personalities, and
 
 ## Runtime flow
 
-Fabrexa uses Telegram as the chat interface and Ollama as the local model server.
+Fabrexa uses Telegram as the chat interface, Ollama as the local text-model server, and ComfyUI as the optional local image runtime.
 
 ```text
 Telegram update
@@ -18,6 +18,12 @@ Conversation and personality context
 Ollama /api/chat
     ↓
 Streamed Telegram reply
+    ↓
+Character appearance from personality + scene from final assistant reply
+    ↓
+Unload text model → ComfyUI image → Telegram photo
+    ↓
+Unload image model → preload text model
 ```
 
 For each normal text message, the bot:
@@ -27,8 +33,14 @@ For each normal text message, the bot:
 3. Loads up to 24 recent messages from the active session, then trims the oldest messages when the history token budget or context window requires it.
 4. Adds long-term memory when the selected personality is allowed to use it.
 5. Sends the request to Ollama with streaming enabled.
-6. Updates the Telegram response while the model is generating it.
-7. Stores the final conversation locally.
+6. Shows a compact model/personality/memory placeholder, then replaces it as soon as the first streamed text chunk arrives and continues throttled edits.
+7. Stores and finishes sending the final conversation locally.
+8. If the Telegram account has automatic images enabled, asks the same text model to direct one still image. The selected personality prompt supplies only stated character appearance; the final assistant reply supplies only the scene.
+9. Stores the scene direction in the session log and the user's private image record without adding it to future conversation context.
+10. Unloads the text model, sends a small image-building status, runs ComfyUI with the complete direction, and sends the result with the direction inside an expandable caption. Only the displayed caption is shortened when Telegram's fixed caption limit requires it.
+11. Deletes the status, unloads the ComfyUI model, and preloads the text model for the next queued message.
+
+After successful photo delivery and model recovery, the console reports wall-clock durations for request setup, queue wait, text-model preparation, context/memory, text generation and delivery, scene direction, prompt persistence, both model handoffs, image generation and delivery, time until the photo, and total time including cleanup.
 
 The Ollama request includes `temperature`, `top_p`, `num_ctx`, `num_predict`, and `keep_alive` from the environment configuration.
 
@@ -45,6 +57,7 @@ The Ollama request includes `temperature`, `top_p`, `num_ctx`, `num_predict`, an
 | `src/memory/memoryService.js` | Short-term and long-term storage |
 | `src/memory/analyzer.js` | Model-based memory classification |
 | `src/memory/processor.js` | Scheduled memory promotion and cleanup |
+| `src/image/` | Scene direction, per-user preference/history, serial queue, ComfyUI workflow, and model handoff |
 
 ## Personalities
 
@@ -70,10 +83,11 @@ Fabrexa stores runtime data under `chat_memory/<chat-id>/`.
 | `session_<id>.txt` | Messages from one conversation session |
 | `memory-short-term.json` | Temporary memory candidates |
 | `memory-long-term.json` | Stable memory used in future prompts |
+| `users/<telegram-id>/image-generation.json` | Per-account image preference and recent scene directions |
 
 ### Recent conversation
 
-Recent messages from the active session provide normal conversational context. By default, Fabrexa considers up to 24 previous messages with an approximate 4096-token history budget. It also reserves room for the system and personality prompt, long-term memory, the latest user message, the configured maximum response, and a small safety margin. If everything does not fit, the oldest history messages are removed first. Starting a new chat creates a new session, so earlier session messages are no longer included.
+Recent messages from the active session provide normal conversational context. By default, Fabrexa considers up to 24 previous messages with an approximate 4096-token history budget. It also reserves room for the system and personality prompt, long-term memory, the latest user message, the configured maximum response, and a small safety margin. If everything does not fit, the oldest history messages are removed first. Starting a new chat creates a new session, so earlier session messages are no longer included. `Artifact(Scene Director)` log entries remain auditable in the session file but are skipped by the conversation parser.
 
 ### Short-term memory
 
@@ -114,7 +128,6 @@ The repository's [`.env.example`](../.env.example) is the source of truth for a 
 | --- | --- | --- |
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Ollama server base URL without `/api/chat` |
 | `OLLAMA_MODEL` | `llama3.1` in code | Main chat model |
-| `OLLAMA_ANALYZER_MODEL` | Main chat model | Optional separate memory analyzer model |
 | `OLLAMA_KEEP_ALIVE` | `10m` | How long Ollama keeps a model loaded |
 | `OLLAMA_NUM_CTX` | `8192` | Context window size |
 | `OLLAMA_TEMPERATURE` | `0.8` | Sampling temperature |
@@ -128,6 +141,27 @@ The repository's [`.env.example`](../.env.example) is the source of truth for a 
 | `REQUEST_TIMEOUT` | `120000` | Ollama request timeout in milliseconds |
 
 `.env.example` selects `gemma3:12b`, so a normal installation uses that model unless you change it.
+
+The same `OLLAMA_MODEL` is intentionally used for chat replies, memory analysis, and scene direction. This keeps the runtime to one text model plus one private ComfyUI checkpoint.
+
+The director treats the selected personality prompt as read-only appearance reference data: face, eyes, hair, skin, body, proportions, clothing, accessories, and other stable visual identifiers. It ignores personality behavior and roleplay instructions. Scene, action, pose, expression, setting, and composition come only from the completed assistant reply. The assistant character is prioritized over the environment and over any user representation.
+
+### Automatic image continuation
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `IMAGE_GENERATION_AVAILABLE` | `true` | Exposes automatic image settings and initializes the image runtime |
+| `IMAGE_GENERATION_DEFAULT_ENABLED` | `true` | Default for a Telegram account with no saved preference |
+| `IMAGE_SCENE_DIRECTOR_PROMPT_PATH` | `src/image/scene-director.txt` | Scene-director system prompt |
+| `IMAGE_GENERATION_QUEUE_MAX_SIZE` | `5` | Maximum active and waiting model-sensitive jobs |
+| `COMFYUI_BASE_URL` | `http://127.0.0.1:8188` | Local ComfyUI HTTP server |
+| `COMFYUI_WORKFLOW_PATH` | `src/image/workflow_api.json` | API-format image workflow |
+| `COMFYUI_CHECKPOINT_NAME` | None | Required private checkpoint filename; never commit it |
+| `OLLAMA_HANDOFF_TIMEOUT_MS` | `30000` | Maximum verified text-model load or unload wait |
+
+The committed workflow deliberately leaves `ckpt_name` empty. At runtime the value comes only from ignored `.env`. Node mappings, ComfyUI polling/cleanup controls, and scene-director sampling controls are documented in [`.env.example`](../.env.example).
+
+All incoming conversations and scheduled memory processing share a serial queue. This prevents a new Ollama request from starting while the ComfyUI model owns GPU memory. Long work continues outside Telegraf's update-handler lifetime.
 
 ### Streaming, memory, and logs
 
@@ -172,8 +206,10 @@ npm run check
 - The memory cron expression is valid
 - The Ollama server responds
 - The configured model is installed
+- The private checkpoint setting and image files are present
+- The local ComfyUI queue endpoint responds
 
-It prints `✅ All checks passed.` only after every step succeeds. Use `npm run check:setup` to run only the environment and Ollama checks. Neither command validates the Telegram token with Telegram or sends a test message.
+It prints `✅ All checks passed.` only after every step succeeds. Use `npm run check:setup` to run only environment and local-service checks. Neither command validates the Telegram token with Telegram or generates a real image.
 
 Changes to Telegram interactions, streaming, personalities, and memory should also be checked manually with a test bot and local model.
 
