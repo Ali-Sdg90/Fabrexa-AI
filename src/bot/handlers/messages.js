@@ -18,11 +18,13 @@ import {
     appendChatArtifact,
     appendChatMessage,
     loadRecentConversation,
+    getSessionMemoryForPrompt,
     loadSmartMemory,
     getLongTermMemoryForPrompt,
     smartSaveMessage,
     updateMemoryEntry,
 } from "../../memory/index.js";
+import { analyzeAndSaveSessionTurn } from "../../memory/sessionMemory.js";
 import { getMemoryAccessLabel, hasMemoryAccess } from "../../memory/access.js";
 import {
     aiClient,
@@ -90,6 +92,7 @@ export function buildProcessingMessage({
 
 async function logPipelineTimings({
     chatId,
+    sessionId,
     username,
     userId,
     messageTimings,
@@ -111,6 +114,7 @@ async function logPipelineTimings({
             chatId,
             "Pipeline Timing",
             compactTimingReport(report),
+            sessionId,
         );
     } catch (error) {
         console.warn("⚠️ Could not save pipeline timing to the session:", error.message);
@@ -183,8 +187,10 @@ async function sendAutomaticImage(
     response,
     userMessage,
     characterAppearance,
+    sessionMemoryContext,
     username,
     userId,
+    sessionId,
 ) {
     let imageStatusMessage = null;
     let caption = "";
@@ -196,12 +202,14 @@ async function sendAutomaticImage(
             latestAssistantResponse: response,
             latestUserMessage: userMessage,
             characterAppearance,
+            sessionMemoryContext,
             onPromptReady: async (scenePrompt) => {
                 caption = buildImageCaption(scenePrompt);
                 await appendChatArtifact(
                     ctx.chat.id,
                     "Scene Director",
                     scenePrompt,
+                    sessionId,
                 );
                 const promptRecord = await imagePreferences.recordScenePrompt({
                     user: ctx.from,
@@ -270,6 +278,7 @@ async function processConversation({
     imageEnabled,
     personality,
     memoryAccess,
+    sessionId,
     receivedAt,
     queuedAt,
 }) {
@@ -290,12 +299,20 @@ async function processConversation({
     messageTimings.textModelPreparationMs = Date.now() - phaseStartedAt;
 
     phaseStartedAt = Date.now();
-    const recentHistory = await loadRecentConversation(ctx.chat.id);
+    const recentHistory = await loadRecentConversation(
+        ctx.chat.id,
+        undefined,
+        sessionId,
+    );
+    const sessionMemoryContext = await getSessionMemoryForPrompt(
+        ctx.chat.id,
+        sessionId,
+    );
     const memoryContext = memoryAccess
         ? await getLongTermMemoryForPrompt(ctx.chat.id, 30)
         : "";
 
-    await appendChatMessage(ctx.chat.id, "user", userMessage);
+    await appendChatMessage(ctx.chat.id, "user", userMessage, null, sessionId);
     if (memoryAccess) {
         const userSaved = await smartSaveMessage(
             ctx.chat.id,
@@ -339,6 +356,7 @@ async function processConversation({
                 await ctx.sendChatAction("typing");
             }
         },
+        sessionMemoryContext,
     );
     messageTimings.textGenerationMs = Date.now() - phaseStartedAt;
 
@@ -356,6 +374,7 @@ async function processConversation({
         "assistant",
         response,
         personality.name,
+        sessionId,
     );
     await sendFinalResponse(ctx, processingMessage, response);
     messageTimings.textDeliveryMs = Date.now() - phaseStartedAt;
@@ -367,12 +386,15 @@ async function processConversation({
             response,
             userMessage,
             personality.appearance,
+            sessionMemoryContext,
             username,
             userId,
+            sessionId,
         );
         if (imageResult?.photoDeliveredAt) {
             await logPipelineTimings({
                 chatId: ctx.chat.id,
+                sessionId,
                 username,
                 userId,
                 messageTimings,
@@ -381,6 +403,47 @@ async function processConversation({
                 totalWithCleanupMs: Date.now() - receivedAt,
             });
         }
+    }
+
+    scheduleSessionMemoryAnalysis({
+        chatId: ctx.chat.id,
+        sessionId,
+        userMessage,
+        assistantMessage: response,
+    });
+}
+
+function scheduleSessionMemoryAnalysis({
+    chatId,
+    sessionId,
+    userMessage,
+    assistantMessage,
+}) {
+    try {
+        const queued = conversationQueue.add(
+            async () => {
+                if (!imagePipeline.textModelReady) {
+                    await imagePipeline.ensureTextModelReady();
+                }
+                return analyzeAndSaveSessionTurn({
+                    chatId,
+                    sessionId,
+                    userMessage,
+                    assistantMessage,
+                    aiClient,
+                });
+            },
+            { priority: "background" },
+        );
+        void queued.promise.catch((error) => {
+            console.error(
+                `Session memory analysis failed for chat ${chatId}, session ${sessionId}: ${error.message}`,
+            );
+        });
+    } catch (error) {
+        console.error(
+            `Could not queue session memory analysis for chat ${chatId}, session ${sessionId}: ${error.message}`,
+        );
     }
 }
 
@@ -487,6 +550,7 @@ export function registerMessageHandler(bot) {
                     imageEnabled,
                     personality,
                     memoryAccess,
+                    sessionId: chatState.currentSession,
                     receivedAt,
                     queuedAt,
                 }),

@@ -136,6 +136,9 @@ if (imageGenerationAvailable) {
     const directorPromptPath =
         process.env.IMAGE_SCENE_DIRECTOR_PROMPT_PATH?.trim() ||
         "src/image/scene-director.txt";
+    const additionalDirectorPromptPath =
+        process.env.IMAGE_ADDITIONAL_SCENE_PROMPT_PATH?.trim() ||
+        "src/image/additional-scene-prompt.txt";
     addCheck(
         "ComfyUI API workflow",
         fs.existsSync(workflowPath),
@@ -145,6 +148,13 @@ if (imageGenerationAvailable) {
         "Scene-director prompt",
         fs.existsSync(directorPromptPath),
         directorPromptPath,
+    );
+    addCheck(
+        "Additional scene-director prompt",
+        true,
+        fs.existsSync(additionalDirectorPromptPath)
+            ? additionalDirectorPromptPath
+            : "not present; using only the main scene-director prompt",
     );
 
 }
@@ -162,6 +172,12 @@ const historyMaxMessages = Number(
     process.env.CHAT_HISTORY_MAX_MESSAGES || 24,
 );
 const historyMaxTokens = Number(process.env.CHAT_HISTORY_MAX_TOKENS || 4096);
+const sessionMemoryPromptPath =
+    process.env.SESSION_MEMORY_PROMPT_PATH?.trim() ||
+    "src/memory/session-memory-prompt.txt";
+const sessionMemoryMaxPromptTokens = Number(
+    process.env.SESSION_MEMORY_MAX_PROMPT_TOKENS || 2048,
+);
 const minResponseWords = Number(
     process.env.OLLAMA_MIN_RESPONSE_WORDS ?? 250,
 );
@@ -189,6 +205,17 @@ addCheck(
     "Conversation history token budget",
     Number.isInteger(historyMaxTokens) && historyMaxTokens > 0,
     `${historyMaxTokens || "invalid"} approximate tokens`,
+);
+addCheck(
+    "Session-memory analyzer prompt",
+    fs.existsSync(sessionMemoryPromptPath),
+    sessionMemoryPromptPath,
+);
+addCheck(
+    "Session-memory prompt budget",
+    Number.isInteger(sessionMemoryMaxPromptTokens) &&
+        sessionMemoryMaxPromptTokens > 0,
+    `${sessionMemoryMaxPromptTokens || "invalid"} approximate tokens`,
 );
 
 const memoryProcessorCron = process.env.MEMORY_PROCESSOR_CRON || "0 0 * * *";

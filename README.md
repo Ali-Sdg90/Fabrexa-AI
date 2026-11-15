@@ -19,7 +19,7 @@ It gives a local model a familiar chat interface, streams replies as they are ge
 - Supports plain-text personality prompts
 - Provides optional short-term and long-term memory
 - Lets the user view, edit, or remove saved long-term memories
-- Directs one image from only the latest AI reply, then sends it with a collapsed prompt caption
+- Directs one continuity-aware image from the active session state and latest exchange, then sends it with a collapsed prompt caption
 - Lets each Telegram account disable or re-enable automatic images
 - Runs in private owner-only mode by default
 
@@ -46,18 +46,19 @@ Telegram
 Fabrexa
    ├── selected personality
    ├── recent conversation
+   ├── session continuity memory
    └── allowed long-term memory
    ↓
 Ollama on your computer
    ├── streamed reply in Telegram
-   └── character appearance file + scene from final reply
+   └── appearance + session continuity + latest exchange
            ↓
        ComfyUI image
            ↓
        Telegram photo + collapsed direction prompt
 ```
 
-Fabrexa sends the active personality prompt, up to 24 recent conversation messages, optional long-term memory, and the new message to Ollama. Recent history has an approximate 4096-token budget and is shortened from the oldest message when needed so the prompt and reply still fit the configured context window. The response is streamed back to Telegram. When automatic images are enabled, the same text model directs one still image using the selected character's separate appearance file and scene direction from the completed assistant response. Fabrexa records the direction, unloads the text model, runs the local ComfyUI workflow, sends the photo, unloads the image model, and preloads the text model again.
+Fabrexa sends the active personality prompt, up to 24 recent conversation messages, the active session's bounded continuity memory, optional long-term memory, and the new message to Ollama. Recent history has an approximate 4096-token budget and is shortened from the oldest message when needed so the prompt and reply still fit the configured context window. The response is streamed back to Telegram. When automatic images are enabled, the same text model directs one still image using the selected character's separate appearance file, ordered session continuity memory, and the latest user/assistant exchange. Fabrexa records the direction, unloads the text model, runs the local ComfyUI workflow, sends the photo, unloads the image model, and preloads the text model again.
 
 ## Requirements
 
@@ -153,7 +154,7 @@ Fabrexa responds to normal text messages and provides four quick actions:
 
 Automatic images are enabled by default for every personality. The preference is stored per Telegram user, so changing personalities or starting a new chat does not reset it.
 
-The image director receives three isolated inputs: the selected character's appearance file for stable identity traits; the latest assistant reply for the immediate narrative moment; and the latest user message for the requested scene and changes. Explicit details in the latest user message take precedence when the two messages conflict. It never receives the personality system prompt, earlier history, or long-term memory. The prompt specifies the exact number of visible people, puts each depicted person's gender in parentheses after every name, and includes a time of day and plausible clock time. The assistant character stays visually dominant, while the user is omitted unless their physical presence is necessary. The generated direction is saved both as a non-conversational session artifact and under `chat_memory/users/<telegram-id>/image-generation.json`; artifacts are deliberately excluded from later chat context.
+The image director receives four isolated inputs: the selected character's appearance file for stable identity traits and defaults; ordered continuity memory from earlier turns in the active session; the latest assistant reply for the immediate narrative moment; and the latest user message for the requested scene and changes. Later memory entries override earlier conflicting state, the latest exchange overrides memory, and explicit details in the latest user message take precedence when the two latest messages conflict. All source blocks are treated as data rather than instructions. The director never receives the personality system prompt, raw earlier history, or long-term memory. If `src/image/additional-scene-prompt.txt` exists and contains text, its private instructions are appended to the main scene-director system prompt; when it is missing or empty, only `src/image/scene-director.txt` is used. The optional path can be changed with `IMAGE_ADDITIONAL_SCENE_PROMPT_PATH`. The prompt specifies the exact number of visible people, puts each depicted person's gender in parentheses after every name, and includes a time of day and plausible clock time. The assistant character stays visually dominant, while the user is omitted unless their physical presence is necessary. The generated direction is saved both as a non-conversational session artifact and under `chat_memory/users/<telegram-id>/image-generation.json`; artifacts are deliberately excluded from later chat context.
 
 The Telegram photo caption contains the prompt used by ComfyUI inside an expandable HTML blockquote. Scene prompts are not length-limited before storage or generation; when one exceeds Telegram's fixed photo-caption limit, only the displayed caption becomes a shortened preview. While ComfyUI is working, the bot shows only `Your image is being created...`; that status is removed after the photo arrives.
 
@@ -166,9 +167,22 @@ Before streaming starts, a compact placeholder shows the text model, image model
 Conversation history and the optional memory system are separate:
 
 - The active conversation supplies recent messages to the model.
+- Every session has private chronological continuity memory for story events,
+  character state, clothing, locations, relationships, goals, and other details
+  needed in later turns. It is active for every personality and is discarded
+  from prompt context when a new session starts.
 - Short-term memory stores useful facts identified from user messages.
 - The scheduled processor promotes stable and important facts to long-term memory.
 - Long-term memory is added to future prompts and remains available across new chats.
+
+After the latest reply and optional image pipeline finish, the same local Ollama
+model reviews only that user message and assistant response. Its strict JSON
+result is appended to `chat_memory/<chat-id>/sessions/<session-id>/session-memory.json`.
+The paired `chat.txt` contains the session transcript. This background analysis
+runs at lower queue priority than incoming conversations and has no Telegram UI.
+A bounded recent portion of the ordered memory is supplied to later chat replies
+and image direction. The existing short-term and long-term memory files remain
+separate at chat level.
 
 Memory is enabled by default for Friendly and Vent Girl:
 

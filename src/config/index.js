@@ -121,6 +121,13 @@ export const CHAT_HISTORY_MAX_MESSAGES = Math.floor(
 export const CHAT_HISTORY_MAX_TOKENS = Math.floor(
     readNumber("CHAT_HISTORY_MAX_TOKENS", 4096),
 );
+export const SESSION_MEMORY_PROMPT_PATH = path.resolve(
+    process.env.SESSION_MEMORY_PROMPT_PATH?.trim() ||
+        "src/memory/session-memory-prompt.txt",
+);
+export const SESSION_MEMORY_MAX_PROMPT_TOKENS = Math.floor(
+    readNumber("SESSION_MEMORY_MAX_PROMPT_TOKENS", 2048),
+);
 
 // Logging configuration
 export const LOG_LEVEL = process.env.LOG_LEVEL || "INFO";
@@ -175,6 +182,10 @@ export const IMAGE_GENERATION_QUEUE_MAX_SIZE = Math.floor(
 export const IMAGE_SCENE_DIRECTOR_PROMPT_PATH = path.resolve(
     process.env.IMAGE_SCENE_DIRECTOR_PROMPT_PATH?.trim() ||
         "src/image/scene-director.txt",
+);
+export const IMAGE_ADDITIONAL_SCENE_PROMPT_PATH = path.resolve(
+    process.env.IMAGE_ADDITIONAL_SCENE_PROMPT_PATH?.trim() ||
+        "src/image/additional-scene-prompt.txt",
 );
 export const IMAGE_USER_DATA_DIR = path.resolve(
     CHAT_MEMORY_DIR,

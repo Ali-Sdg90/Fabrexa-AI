@@ -15,6 +15,11 @@ import {
 } from "../config/index.js";
 import { analyzeMessageImportance } from "./analyzer.js";
 import { getMemoryService } from "./memoryService.js";
+import {
+    ensureSessionData,
+    getSessionChatPath,
+    getSessionMemoryForPrompt as loadSessionMemoryForPrompt,
+} from "./sessionMemory.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const storageRoot = path.join(__dirname, "..", "..", CHAT_MEMORY_DIR);
@@ -27,8 +32,16 @@ function getMetaPath(chatId) {
     return path.join(getChatFolder(chatId), "meta.json");
 }
 
-function getSessionPath(chatId, sessionId) {
+function getLegacySessionPath(chatId, sessionId) {
     return path.join(getChatFolder(chatId), `session_${sessionId}.txt`);
+}
+
+async function ensureChatSession(chatId, sessionId) {
+    return ensureSessionData({
+        chatId,
+        sessionId,
+        legacyChatPath: getLegacySessionPath(chatId, sessionId),
+    });
 }
 
 async function ensureChatFolder(chatId) {
@@ -65,7 +78,9 @@ async function saveMeta(chatId, meta) {
 }
 
 export async function getChatState(chatId) {
-    return loadMeta(chatId);
+    const meta = await loadMeta(chatId);
+    await ensureChatSession(chatId, meta.currentSession);
+    return meta;
 }
 
 export async function createNewChatSession(chatId) {
@@ -73,12 +88,7 @@ export async function createNewChatSession(chatId) {
     const nextSession = meta.currentSession + 1;
     meta.currentSession = nextSession;
     await saveMeta(chatId, meta);
-    await ensureChatFolder(chatId);
-    await fs.writeFile(
-        getSessionPath(chatId, nextSession),
-        `--- New chat session ${nextSession} ---\n`,
-        "utf-8",
-    );
+    await ensureChatSession(chatId, nextSession);
     return meta;
 }
 
@@ -94,9 +104,12 @@ export async function appendChatMessage(
     role,
     message,
     personalityName = null,
+    sessionId = null,
 ) {
     const meta = await loadMeta(chatId);
-    const sessionPath = getSessionPath(chatId, meta.currentSession);
+    const targetSession = sessionId ?? meta.currentSession;
+    await ensureChatSession(chatId, targetSession);
+    const sessionPath = getSessionChatPath(chatId, targetSession);
     const timestamp = new Date()
         .toISOString()
         .replace("T", " ")
@@ -111,9 +124,11 @@ export async function appendChatMessage(
     await fs.appendFile(sessionPath, entry, "utf-8");
 }
 
-export async function appendChatArtifact(chatId, label, message) {
+export async function appendChatArtifact(chatId, label, message, sessionId = null) {
     const meta = await loadMeta(chatId);
-    const sessionPath = getSessionPath(chatId, meta.currentSession);
+    const targetSession = sessionId ?? meta.currentSession;
+    await ensureChatSession(chatId, targetSession);
+    const sessionPath = getSessionChatPath(chatId, targetSession);
     const timestamp = new Date()
         .toISOString()
         .replace("T", " ")
@@ -157,9 +172,12 @@ function normalizeConversation(entries) {
 export async function loadRecentConversation(
     chatId,
     maxMessages = CHAT_HISTORY_MAX_MESSAGES,
+    sessionId = null,
 ) {
     const meta = await loadMeta(chatId);
-    const sessionPath = getSessionPath(chatId, meta.currentSession);
+    const targetSession = sessionId ?? meta.currentSession;
+    await ensureChatSession(chatId, targetSession);
+    const sessionPath = getSessionChatPath(chatId, targetSession);
     if (!existsSync(sessionPath)) {
         return [];
     }
@@ -203,6 +221,13 @@ export function parseSessionHistory(
 
 export async function ensureMemoryDirectory() {
     await fs.mkdir(storageRoot, { recursive: true });
+}
+
+export async function getSessionMemoryForPrompt(chatId, sessionId = null) {
+    const meta = await loadMeta(chatId);
+    const targetSession = sessionId ?? meta.currentSession;
+    await ensureChatSession(chatId, targetSession);
+    return loadSessionMemoryForPrompt(chatId, targetSession);
 }
 
 export async function smartSaveMessage(chatId, role, message) {

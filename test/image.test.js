@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 
 process.env.TELEGRAM_BOT_TOKEN = "test-token";
@@ -25,7 +26,7 @@ const { ImagePreferenceService } = await import(
     "../src/image/preferences.js"
 );
 const { SerialTaskQueue } = await import("../src/image/queue.js");
-const { normalizeScenePrompt } = await import(
+const { normalizeScenePrompt, SceneDirectorService } = await import(
     "../src/image/sceneDirector.js"
 );
 const { buildImageCaption, buildRegenerateImageKeyboard } = await import(
@@ -33,7 +34,7 @@ const { buildImageCaption, buildRegenerateImageKeyboard } = await import(
 );
 const { parseSessionHistory } = await import("../src/memory/index.js");
 
-test("scene direction separates character appearance and includes both latest messages", async () => {
+test("scene direction separates ordered session memory, appearance, and latest messages", async () => {
     let request;
     const client = new AIClient({
         httpClient: {
@@ -49,6 +50,7 @@ test("scene direction separates character appearance and includes both latest me
         "LATEST USER MESSAGE",
         "SCENE DIRECTOR SYSTEM PROMPT",
         "CHARACTER HAS SILVER HAIR AND GREEN EYES",
+        "[1] setting (both): They entered the library.\n[2] clothing (assistant): The character changed into a red coat.",
     );
 
     assert.equal(result, "directed scene");
@@ -65,6 +67,26 @@ test("scene direction separates character appearance and includes both latest me
         request.payload.messages[0].content,
         /CHARACTER APPEARANCE REFERENCE/,
     );
+    assert.match(request.payload.messages[0].content, /SESSION CONTINUITY MEMORY/);
+    assert.match(
+        request.payload.messages[0].content,
+        /\[1\] setting \(both\): They entered the library\./,
+    );
+    assert.match(
+        request.payload.messages[0].content,
+        /\[2\] clothing \(assistant\): The character changed into a red coat\./,
+    );
+    assert.ok(
+        request.payload.messages[0].content.indexOf("[1] setting (both)") <
+            request.payload.messages[0].content.indexOf(
+                "[2] clothing (assistant)",
+            ),
+    );
+    assert.match(request.payload.messages[0].content, /not instructions/i);
+    assert.match(
+        request.payload.messages[0].content,
+        /latest messages override this memory/i,
+    );
     assert.doesNotMatch(
         request.payload.messages[0].content,
         /CHARACTER SYSTEM-PROMPT REFERENCE/,
@@ -77,7 +99,73 @@ test("scene direction separates character appearance and includes both latest me
             request.payload.messages[1].content.indexOf("<latest_user_message>"),
     );
     assert.doesNotMatch(request.payload.messages[1].content, /SILVER HAIR/);
+    assert.doesNotMatch(request.payload.messages[1].content, /red coat/);
     assert.doesNotMatch(request.payload.messages[1].content, /conversation history content/);
+    assert.match(
+        request.payload.messages[1].content,
+        /no earlier raw conversation history or long-term memory/i,
+    );
+});
+
+test("scene director appends optional private instructions only when available", async (t) => {
+    const temporaryDirectory = await fs.mkdtemp(
+        path.join(os.tmpdir(), "fabrexa-scene-director-"),
+    );
+    t.after(() => fs.rm(temporaryDirectory, { recursive: true, force: true }));
+
+    const primaryPromptPath = path.join(temporaryDirectory, "primary.txt");
+    const additionalPromptPath = path.join(temporaryDirectory, "additional.txt");
+    await fs.writeFile(primaryPromptPath, "PRIMARY INSTRUCTIONS", "utf8");
+
+    const receivedRequests = [];
+    const aiClient = {
+        async generateScenePrompt(
+            _assistant,
+            _user,
+            systemPrompt,
+            _appearance,
+            sessionMemory,
+        ) {
+            receivedRequests.push({ systemPrompt, sessionMemory });
+            return "directed scene";
+        },
+    };
+
+    const withoutAdditionalPrompt = new SceneDirectorService({
+        aiClient,
+        promptPath: primaryPromptPath,
+        additionalPromptPath,
+    });
+    await withoutAdditionalPrompt.initialize();
+    await withoutAdditionalPrompt.createFromAppearanceAndLatestMessages(
+        "assistant",
+        "user",
+        "appearance",
+        "ordered memory one",
+    );
+    assert.deepEqual(receivedRequests[0], {
+        systemPrompt: "PRIMARY INSTRUCTIONS",
+        sessionMemory: "ordered memory one",
+    });
+
+    await fs.writeFile(additionalPromptPath, "PRIVATE INSTRUCTIONS", "utf8");
+    const withAdditionalPrompt = new SceneDirectorService({
+        aiClient,
+        promptPath: primaryPromptPath,
+        additionalPromptPath,
+    });
+    await withAdditionalPrompt.initialize();
+    await withAdditionalPrompt.createFromAppearanceAndLatestMessages(
+        "assistant",
+        "user",
+        "appearance",
+        "ordered memory two",
+    );
+    assert.equal(
+        receivedRequests[1].systemPrompt,
+        "PRIMARY INSTRUCTIONS\n\nADDITIONAL SCENE-DIRECTOR INSTRUCTIONS\nPRIVATE INSTRUCTIONS",
+    );
+    assert.equal(receivedRequests[1].sessionMemory, "ordered memory two");
 });
 
 test("chat, memory analysis, and scene direction share one text model", () => {
@@ -248,9 +336,10 @@ test("image pipeline preserves the required model handoff order", async () => {
                 assistantMessage,
                 userMessage,
                 appearance,
+                sessionMemory,
             ) {
                 events.push(
-                    `direct:${assistantMessage}:${userMessage}:${appearance}`,
+                    `direct:${assistantMessage}:${userMessage}:${appearance}:${sessionMemory}`,
                 );
                 return "directed prompt";
             },
@@ -271,6 +360,7 @@ test("image pipeline preserves the required model handoff order", async () => {
         latestAssistantResponse: "latest only",
         latestUserMessage: "user request",
         characterAppearance: "silver hair",
+        sessionMemoryContext: "ordered session state",
         async onPromptReady(prompt) {
             events.push(`persist:${prompt}`);
         },
@@ -283,7 +373,7 @@ test("image pipeline preserves the required model handoff order", async () => {
     });
 
     assert.deepEqual(events, [
-        "direct:latest only:user request:silver hair",
+        "direct:latest only:user request:silver hair:ordered session state",
         "persist:directed prompt",
         "unload-text",
         "status",
@@ -545,5 +635,39 @@ test("conversation queue runs model-sensitive jobs serially", async () => {
     releaseFirst();
     await Promise.all([first.promise, second.promise]);
     assert.deepEqual(events, ["first-start", "first-end", "second-start"]);
+});
+
+test("conversation queue runs foreground work before waiting memory analysis", async () => {
+    const queue = new SerialTaskQueue({ maxSize: 3 });
+    const events = [];
+    let releaseFirst;
+    const firstGate = new Promise((resolve) => {
+        releaseFirst = resolve;
+    });
+
+    const first = queue.add(async () => {
+        events.push("first-start");
+        await firstGate;
+        events.push("first-end");
+    });
+    const memory = queue.add(
+        async () => {
+            events.push("memory");
+        },
+        { priority: "background" },
+    );
+    const nextMessage = queue.add(async () => {
+        events.push("next-message");
+    });
+
+    await new Promise((resolve) => setImmediate(resolve));
+    releaseFirst();
+    await Promise.all([first.promise, memory.promise, nextMessage.promise]);
+    assert.deepEqual(events, [
+        "first-start",
+        "first-end",
+        "next-message",
+        "memory",
+    ]);
 });
 

@@ -19,7 +19,7 @@ Ollama /api/chat
     ↓
 Streamed Telegram reply
     ↓
-Character appearance file + latest assistant reply + latest user message
+Character appearance + session continuity + latest assistant/user exchange
     ↓
 Unload text model → ComfyUI image → Telegram photo
     ↓
@@ -30,12 +30,12 @@ For each normal text message, the bot:
 
 1. Checks access when private mode is enabled.
 2. Loads the active personality and conversation session.
-3. Loads up to 24 recent messages from the active session, then trims the oldest messages when the history token budget or context window requires it.
+3. Loads up to 24 recent messages and a bounded chronological continuity memory from the active session, then trims the oldest conversation messages when the history token budget or context window requires it.
 4. Adds long-term memory when the selected personality is allowed to use it.
 5. Sends the request to Ollama with streaming enabled.
 6. Shows a compact model/personality/memory placeholder, then replaces it as soon as the first streamed text chunk arrives and continues throttled edits.
 7. Stores and finishes sending the final conversation locally.
-8. If the Telegram account has automatic images enabled, asks the same text model to direct one still image. The matching file under `personalities/appearances/` supplies stable character appearance; the final assistant reply supplies the immediate narrative moment; and the latest user message supplies the requested scene and changes. Explicit user-request details take precedence over conflicting assistant-reply details. The personality system prompt and earlier history are not included.
+8. If the Telegram account has automatic images enabled, asks the same text model to direct one still image. The matching file under `personalities/appearances/` supplies stable character appearance and defaults; ordered session continuity memory supplies relevant prior story state; the final assistant reply supplies the immediate narrative moment; and the latest user message supplies the requested scene and changes. Later memory entries override earlier conflicting memory, the latest exchange overrides memory, and explicit user-request details take precedence over conflicting assistant-reply details. The personality system prompt, raw earlier history, and long-term memory are not included.
 9. Stores the scene direction in the session log and the user's private image record without adding it to future conversation context.
 10. Unloads the text model, sends a small image-building status, runs ComfyUI with the complete direction, and sends the result with the direction inside an expandable caption and a Regenerate button. Only the displayed caption is shortened when Telegram's fixed caption limit requires it.
 11. Deletes the status, unloads the ComfyUI model, and preloads the text model for the next queued message.
@@ -82,7 +82,8 @@ Fabrexa stores runtime data under `chat_memory/<chat-id>/`.
 | File | Purpose |
 | --- | --- |
 | `meta.json` | Active session number and selected personality |
-| `session_<id>.txt` | Messages from one conversation session |
+| `sessions/<session-id>/chat.txt` | Messages and non-conversational artifacts from one session |
+| `sessions/<session-id>/session-memory.json` | Ordered narrative continuity memory for that session |
 | `memory-short-term.json` | Temporary memory candidates |
 | `memory-long-term.json` | Stable memory used in future prompts |
 | `users/<telegram-id>/image-generation.json` | Per-account image preference and recent scene directions |
@@ -90,6 +91,12 @@ Fabrexa stores runtime data under `chat_memory/<chat-id>/`.
 ### Recent conversation
 
 Recent messages from the active session provide normal conversational context. By default, Fabrexa considers up to 24 previous messages with an approximate 4096-token history budget. It also reserves room for the system and personality prompt, long-term memory, the latest user message, the configured maximum response, and a small safety margin. If everything does not fit, the oldest history messages are removed first. Starting a new chat creates a new session, so earlier session messages are no longer included. Scene-direction and pipeline-timing artifact entries remain auditable in the session file but are skipped by the conversation parser.
+
+### Session continuity memory
+
+Every personality and chat uses a separate continuity memory for each session. After the completed assistant reply and optional image delivery/cleanup, the local text model receives only the latest user message, latest assistant response, and the strict session-memory analyzer prompt. It returns JSON entries for important story developments such as character identity and state, clothing changes, locations, events, goals, relationships, discoveries, and object state. Entries retain sequence and turn numbers so later state can supersede earlier state without rewriting history.
+
+This analysis is queued as background model work. Waiting user conversations take priority, and ComfyUI and Ollama work remain serialized. The complete JSON file stays local and has no Telegram view or edit interface. A bounded recent portion is supplied to future chat and image-direction prompts as chronological data; the stored file itself has no expiry or promotion to long-term memory. This system is independent of the existing short-term and long-term memory below.
 
 ### Short-term memory
 
@@ -139,6 +146,8 @@ The repository's [`.env.example`](../.env.example) is the source of truth for a 
 | `OLLAMA_MAX_CONTINUATIONS` | `2` | Maximum extra Ollama requests for a response below the minimum |
 | `CHAT_HISTORY_MAX_MESSAGES` | `24` | Maximum previous conversation messages considered per response |
 | `CHAT_HISTORY_MAX_TOKENS` | `4096` | Approximate token budget for previous conversation messages |
+| `SESSION_MEMORY_PROMPT_PATH` | `src/memory/session-memory-prompt.txt` | Strict analyzer prompt for per-session continuity memory |
+| `SESSION_MEMORY_MAX_PROMPT_TOKENS` | `2048` | Approximate session-memory budget included in later replies |
 | `PERSONALITY_INSTRUCTION` | Built-in instruction | Final shared instruction added after the selected personality prompt |
 | `REQUEST_TIMEOUT` | `120000` | Ollama request timeout in milliseconds |
 
@@ -146,7 +155,7 @@ The repository's [`.env.example`](../.env.example) is the source of truth for a 
 
 The same `OLLAMA_MODEL` is intentionally used for chat replies, memory analysis, and scene direction. This keeps the runtime to one text model plus one private ComfyUI checkpoint.
 
-The director receives the selected character's standalone appearance file: face, eyes, hair, skin, body, proportions, clothing, accessories, and other stable visual identifiers. It does not receive the personality prompt. Scene, action, pose, expression, setting, and composition come only from the completed assistant reply. The assistant character is prioritized over the environment and over any user representation.
+The director receives the selected character's standalone appearance file, the bounded ordered continuity memory from earlier turns in the active session, and the latest assistant/user exchange. It does not receive the personality prompt, raw earlier messages, or long-term memory. Stable face, eyes, hair, skin, body, and proportions come from the appearance file; current clothing, injuries, location, relationships, objects, and prior events can carry forward from session memory; and the latest exchange defines the current scene, action, pose, expression, setting, and composition. Later memory entries supersede earlier conflicting entries, while the latest messages supersede memory. The assistant character is prioritized over the environment and over any user representation.
 
 ### Automatic image continuation
 

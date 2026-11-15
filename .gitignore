@@ -26,6 +26,7 @@ personalities/appearances/*
 !personalities/appearances/Elara Voss.txt
 !personalities/appearances/Sherlock Holmes.txt
 !personalities/appearances/Vent Girl.txt
+additional-scene-prompt.txt
 
 # Local editor and OS files
 .vscode/

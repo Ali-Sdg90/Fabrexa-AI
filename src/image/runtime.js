@@ -23,6 +23,7 @@ import {
     IMAGE_GENERATION_AVAILABLE,
     IMAGE_GENERATION_DEFAULT_ENABLED,
     IMAGE_GENERATION_QUEUE_MAX_SIZE,
+    IMAGE_ADDITIONAL_SCENE_PROMPT_PATH,
     IMAGE_SCENE_DIRECTOR_PROMPT_PATH,
     IMAGE_USER_DATA_DIR,
     IMAGE_USER_PROMPT_HISTORY_LIMIT,
@@ -70,6 +71,7 @@ const comfyUIService = new ComfyUIService({
 const sceneDirector = new SceneDirectorService({
     aiClient,
     promptPath: IMAGE_SCENE_DIRECTOR_PROMPT_PATH,
+    additionalPromptPath: IMAGE_ADDITIONAL_SCENE_PROMPT_PATH,
 });
 export const imagePipeline = new ImagePipeline({
     aiClient,

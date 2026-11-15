@@ -50,23 +50,44 @@ export function normalizeScenePrompt(rawOutput) {
 }
 
 export class SceneDirectorService {
-    constructor({ aiClient, promptPath }) {
+    constructor({ aiClient, promptPath, additionalPromptPath }) {
         this.aiClient = aiClient;
         this.promptPath = promptPath;
+        this.additionalPromptPath = additionalPromptPath;
         this.systemPrompt = "";
     }
 
     async initialize() {
-        this.systemPrompt = (await fs.readFile(this.promptPath, "utf8")).trim();
-        if (!this.systemPrompt) {
+        const primaryPrompt = (
+            await fs.readFile(this.promptPath, "utf8")
+        ).trim();
+        if (!primaryPrompt) {
             throw new ScenePromptError("The scene-director prompt file is empty.");
         }
+
+        let additionalPrompt = "";
+        if (this.additionalPromptPath) {
+            try {
+                additionalPrompt = (
+                    await fs.readFile(this.additionalPromptPath, "utf8")
+                ).trim();
+            } catch (error) {
+                if (error?.code !== "ENOENT") {
+                    throw error;
+                }
+            }
+        }
+
+        this.systemPrompt = additionalPrompt
+            ? `${primaryPrompt}\n\nADDITIONAL SCENE-DIRECTOR INSTRUCTIONS\n${additionalPrompt}`
+            : primaryPrompt;
     }
 
     async createFromAppearanceAndLatestMessages(
         latestAssistantResponse,
         latestUserMessage,
         characterAppearance,
+        sessionMemoryContext = "",
     ) {
         if (!this.systemPrompt) {
             throw new ScenePromptError(
@@ -79,6 +100,7 @@ export class SceneDirectorService {
             latestUserMessage,
             this.systemPrompt,
             characterAppearance,
+            sessionMemoryContext,
         );
         return normalizeScenePrompt(rawPrompt);
     }

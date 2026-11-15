@@ -12,6 +12,7 @@ import {
 } from "../config/index.js";
 import { ensureMemoryDirectory } from "../memory/index.js";
 import { startMemoryProcessorScheduler } from "../memory/processor.js";
+import { initializeSessionMemoryAnalyzer } from "../memory/sessionMemory.js";
 import {
     conversationQueue,
     initializeImageRuntime,
@@ -57,6 +58,7 @@ export async function startBot() {
         });
 
         await ensureMemoryDirectory();
+        await initializeSessionMemoryAnalyzer();
         await initializeImageRuntime();
         startMemoryProcessorScheduler({
             taskRunner: (task) => conversationQueue.add(task).promise,

@@ -48,6 +48,7 @@ export class ImagePipeline {
         latestAssistantResponse,
         latestUserMessage,
         characterAppearance,
+        sessionMemoryContext = "",
         onPromptReady,
         onGenerationStart,
         onImageReady,
@@ -61,6 +62,7 @@ export class ImagePipeline {
                 latestAssistantResponse,
                 latestUserMessage,
                 characterAppearance,
+                sessionMemoryContext,
             );
         timings.sceneDirectionMs = this.now() - phaseStartedAt;
 
