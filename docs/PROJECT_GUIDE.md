@@ -1,6 +1,6 @@
 # Project Guide
 
-This guide covers Fabrexa's runtime structure, configuration, personalities, and memory behavior. Start with the main [README](../README.md) if you only want to install and run the bot.
+This guide covers Fabrexa's local text and image runtimes, configuration, personalities, and per-session continuity behavior. Start with the main [README](../README.md) if you only want to install and run the bot.
 
 ## Runtime flow
 
@@ -18,12 +18,18 @@ Conversation and personality context
 Ollama /api/chat
     ↓
 Streamed Telegram reply
+    ├── text-only: continue to memory analysis
+    └── image enabled
+          ↓
+        Appearance + session continuity + latest exchange
+          ↓
+        Unload text model → local ComfyUI image → Telegram photo
+          ↓
+        Unload image model → preload text model
     ↓
-Character appearance + session continuity + latest assistant/user exchange
+Background session-memory analysis
     ↓
-Unload text model → ComfyUI image → Telegram photo
-    ↓
-Unload image model → preload text model
+Ordered session state for the next turn
 ```
 
 For each normal text message, the bot:
@@ -38,12 +44,19 @@ For each normal text message, the bot:
 8. Stores the scene direction in the session log and the user's private image record without adding it to future conversation context.
 9. Unloads the text model, sends a small image-building status, runs ComfyUI with the complete direction, and sends the result with the direction inside an expandable caption and a Regenerate button. Only the displayed caption is shortened when Telegram's fixed caption limit requires it.
 10. Deletes the status, unloads the ComfyUI model, and preloads the text model for the next queued message.
+11. After the reply and optional image cleanup are complete, queues lower-priority analysis of the latest user/assistant exchange and appends important developments to the active session's ordered memory. A later reply or image direction can use that state.
 
 After successful photo delivery and model recovery, the console reports wall-clock durations for request setup, queue wait, text-model preparation, context/session memory, text generation and delivery, scene direction, prompt persistence, both model handoffs, image generation and delivery, time until the photo, and total time including cleanup. The same report is appended to the active session as `Artifact(Pipeline Timing)`.
 
 The Regenerate callback stores only the saved scene-prompt ID. The handler verifies the Telegram user and chat, retrieves the full private prompt, enters the shared serial queue, performs the same text-to-image-to-text model handoff with a new seed, sends a new photo message with the same caption and button, and logs regeneration timings to the console and `Artifact(Image Regeneration Timing)` in the active session. It does not rerun chat generation or scene direction.
 
 The Ollama request includes `temperature`, `top_p`, `num_ctx`, `num_predict`, and `keep_alive` from the environment configuration.
+
+## Local inference boundary
+
+Ollama runs the configured text model for chat replies, scene direction, and session-memory analysis. ComfyUI runs the separately configured image checkpoint when automatic images are available. Both services are expected on local or explicitly configured host addresses, and Fabrexa has no hosted inference fallback. Telegram transports user messages, streamed answers, and generated photos, but model execution and runtime files remain on the host machine.
+
+The example configuration uses `gemma3:12b`, but the runtime can use compatible Ollama models and GGUF model references. Text quality, image quality, speed, and memory usage depend on the selected models, quantization, workflow, and available hardware.
 
 ## Main modules
 
@@ -134,7 +147,7 @@ The same `OLLAMA_MODEL` is intentionally used for chat replies, session-memory a
 
 The director receives the selected character's standalone appearance file, the bounded ordered continuity memory from earlier turns in the active session, and the latest assistant/user exchange. It does not receive the personality prompt or raw earlier messages outside the supplied session memory. Stable face, eyes, hair, skin, body, and proportions come from the appearance file; current clothing, injuries, location, relationships, objects, and prior events can carry forward from session memory; and the latest exchange defines the current scene, action, pose, expression, setting, and composition. Later memory entries supersede earlier conflicting entries, while the latest messages supersede memory. The assistant character is prioritized over the environment and over any user representation.
 
-### Automatic image continuation
+### Automatic image generation
 
 | Variable | Default | Purpose |
 | --- | --- | --- |

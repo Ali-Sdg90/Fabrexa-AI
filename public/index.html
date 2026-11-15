@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta
             name="description"
-            content="Fabrexa AI Ollama is a self-hosted Telegram bot for chatting with local Ollama models, using custom personalities and per-session continuity memory."
+            content="Self-hosted Telegram AI with local Ollama replies, optional ComfyUI images, custom personalities, and ordered memory for each chat session."
         />
         <meta name="author" content="Ali Sadeghi" />
         <meta name="application-name" content="Fabrexa AI Ollama" />
@@ -26,11 +26,11 @@
         />
         <meta
             property="og:title"
-            content="Fabrexa AI Ollama | Local LLM Chat in Telegram"
+            content="Fabrexa AI Ollama | Local AI Chat and Images"
         />
         <meta
             property="og:description"
-            content="A self-hosted Telegram bot for chatting with local Ollama models, with custom personalities and per-session continuity memory."
+            content="Run local Ollama replies and optional ComfyUI images in Telegram, with custom personalities and ordered session memory."
         />
         <meta property="og:type" content="website" />
         <meta
@@ -52,16 +52,16 @@
         <meta property="og:image:height" content="941" />
         <meta
             property="og:image:alt"
-            content="Fabrexa AI Ollama, local LLM chat in Telegram"
+            content="Fabrexa AI Ollama, local AI chat and image generation in Telegram"
         />
         <meta name="twitter:card" content="summary_large_image" />
         <meta
             name="twitter:title"
-            content="Fabrexa AI Ollama | Local LLM Chat in Telegram"
+            content="Fabrexa AI Ollama | Local AI Chat and Images"
         />
         <meta
             name="twitter:description"
-            content="A self-hosted Telegram bot for chatting with local Ollama models, with custom personalities and per-session continuity memory."
+            content="Run local Ollama replies and optional ComfyUI images in Telegram, with custom personalities and ordered session memory."
         />
         <meta
             name="twitter:image"
@@ -69,7 +69,7 @@
         />
         <meta
             name="twitter:image:alt"
-            content="Fabrexa AI Ollama, local LLM chat in Telegram"
+            content="Fabrexa AI Ollama, local AI chat and image generation in Telegram"
         />
         <link rel="icon" href="images/project-logo.jpg" type="image/jpeg" />
         <script type="application/ld+json">
@@ -77,13 +77,13 @@
                 "@context": "https://schema.org",
                 "@type": "SoftwareApplication",
                 "name": "Fabrexa AI Ollama",
-                "description": "A self-hosted Telegram bot for chatting with local Ollama models, with custom personalities and per-session continuity memory.",
+                "description": "A self-hosted Telegram bot for local Ollama replies, optional ComfyUI images, custom personalities, and ordered session memory.",
                 "url": "https://ali-sdg.is-a.dev/Fabrexa-AI-Ollama/",
                 "image": "https://ali-sdg.is-a.dev/Fabrexa-AI-Ollama/images/og-image.jpg",
                 "codeRepository": "https://github.com/Ali-Sdg90/Fabrexa-AI-Ollama",
                 "applicationCategory": "CommunicationApplication",
                 "operatingSystem": "Windows, macOS, Linux",
-                "softwareRequirements": "Node.js 22+, Ollama, and a Telegram bot token",
+                "softwareRequirements": "Node.js 22+, Ollama, a Telegram bot token, and optionally ComfyUI for local images",
                 "isAccessibleForFree": true,
                 "license": "https://opensource.org/licenses/MIT",
                 "author": {
@@ -96,7 +96,7 @@
             document.documentElement.classList.add("js");
         </script>
         <link rel="stylesheet" href="styles.css" />
-        <title>Fabrexa AI Ollama | Local LLM Chat in Telegram</title>
+        <title>Fabrexa AI Ollama | Local AI Chat and Images</title>
     </head>
     <body>
         <a class="skip-link" href="#main-content">Skip to content</a>
@@ -154,13 +154,13 @@
                 <div class="container hero-grid">
                     <div class="hero-copy" data-reveal>
                         <p class="section-label">Fabrexa AI Ollama</p>
-                        <h1>Your local LLM, in Telegram.</h1>
+                        <h1>Local AI chat and images, in Telegram.</h1>
                         <p class="hero-lead">
-                            Fabrexa AI Ollama connects Telegram to a model
-                            running on your computer. Send it a message and
-                            choose how it should respond. Each chat session
-                            keeps ordered continuity for later turns in that
-                            same conversation.
+                            Fabrexa connects Telegram to capable models running
+                            on your own computer. Ollama streams the reply,
+                            optional ComfyUI generation creates the scene, and
+                            each chat session keeps ordered continuity for
+                            later turns in that conversation.
                         </p>
                         <div class="hero-actions">
                             <a class="button button-primary" href="#install"
@@ -181,6 +181,7 @@
                             <ul class="requirements" aria-label="Requirements">
                                 <li>Node.js 22+</li>
                                 <li>Ollama</li>
+                                <li>ComfyUI for local images</li>
                                 <li>A Telegram bot token</li>
                             </ul>
                         </div>
@@ -206,20 +207,21 @@
             <section class="overview section" id="overview">
                 <div class="container narrow" data-reveal>
                     <p class="section-label">What it does</p>
-                    <h2>A familiar chat interface for a model you control.</h2>
+                    <h2>A familiar chat interface for models you control.</h2>
                     <div class="overview-grid">
                         <p class="overview-intro">
-                            Telegram is the interface. Ollama runs the model.
-                            Fabrexa sits between them and handles the
-                            conversation, personalities, and session memory.
+                            Telegram is the interface. Ollama runs the text
+                            model, and ComfyUI optionally runs the image model.
+                            Fabrexa coordinates the conversation,
+                            personalities, and ordered session memory.
                         </p>
                         <div class="plain-features">
                             <article>
                                 <h3>Local model</h3>
                                 <p>
-                                    Responses are generated through Ollama on
-                                    the computer where the bot is running. You
-                                    choose the model and its settings.
+                                    Choose a compact everyday model or a larger,
+                                    more capable Ollama or GGUF model that fits
+                                    the RAM, VRAM, and compute on your machine.
                                 </p>
                             </article>
                             <article>
@@ -246,6 +248,16 @@
                                     chat starts with fresh memory.
                                 </p>
                             </article>
+                            <article>
+                                <h3>Local image generation</h3>
+                                <p>
+                                    When enabled, Fabrexa directs the latest
+                                    scene from the character appearance,
+                                    session state, and latest exchange, then
+                                    generates it through your local ComfyUI
+                                    checkpoint.
+                                </p>
+                            </article>
                         </div>
                     </div>
                 </div>
@@ -254,7 +266,7 @@
             <section class="how-it-works section">
                 <div class="container narrow" data-reveal>
                     <p class="section-label">How it works</p>
-                    <h2>Four parts, one straightforward loop.</h2>
+                    <h2>Five stages, one local-first loop.</h2>
                     <ol class="process">
                         <li>
                             <span>01</span>
@@ -286,10 +298,22 @@
                         <li>
                             <span>04</span>
                             <div>
-                                <h3>The answer returns to Telegram</h3>
+                                <h3>The reply streams to Telegram</h3>
                                 <p>
                                     Fabrexa updates the message as new text
                                     arrives.
+                                </p>
+                            </div>
+                        </li>
+                        <li>
+                            <span>05</span>
+                            <div>
+                                <h3>Images and continuity follow the reply</h3>
+                                <p>
+                                    If images are enabled, ComfyUI creates and
+                                    sends the scene locally. After delivery and
+                                    cleanup, Ollama records important changes
+                                    in ordered memory for the next turn.
                                 </p>
                             </div>
                         </li>
@@ -322,7 +346,15 @@
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 >Ollama</a
-                            >, then create a bot with
+                            >. Install and run
+                            <a
+                                href="https://github.com/comfyanonymous/ComfyUI"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                >ComfyUI</a
+                            >
+                            if you want local image generation, then create a
+                            bot with
                             <a
                                 href="https://t.me/botfather"
                                 target="_blank"
@@ -331,9 +363,10 @@
                             >.
                         </p>
                         <p>
-                            The default setup uses <code>gemma3:12b</code>. You
+                            The example setup uses <code>gemma3:12b</code>. You
                             can also use a compatible GGUF model from Hugging
-                            Face.
+                            Face and choose a separate local ComfyUI checkpoint
+                            for images.
                         </p>
                     </div>
 
@@ -458,7 +491,9 @@ npm install</code></pre>
 OWNER_ID=your_numeric_telegram_id
 OWNER_USERNAME=your_telegram_username
 OLLAMA_MODEL=gemma3:12b
-BOT_PRIVATE=true</code></pre>
+BOT_PRIVATE=true
+IMAGE_GENERATION_AVAILABLE=true
+COMFYUI_CHECKPOINT_NAME=your-local-checkpoint-file.safetensors</code></pre>
                             </div>
                             <p class="small-copy">
                                 If you chose Hugging Face, replace
@@ -468,7 +503,10 @@ BOT_PRIVATE=true</code></pre>
                                 <code>.env</code> file. In private mode,
                                 <code>OWNER_USERNAME</code> is shown to users
                                 who want to request access; the leading
-                                <code>@</code> is optional.
+                                <code>@</code> is optional. Keep the checkpoint
+                                filename only in <code>.env</code>. For a
+                                text-only setup, set
+                                <code>IMAGE_GENERATION_AVAILABLE=false</code>.
                             </p>
                         </li>
 
@@ -520,8 +558,9 @@ npm start</code></pre>
                     <div>
                         <h2>Use it as it is, or make it your own.</h2>
                         <p>
-                            Change the model, personality, or image behavior.
-                            The codebase is small enough to make your own.
+                            Choose the local text model, local image checkpoint,
+                            personalities, and session behavior that fit your
+                            machine and the experience you want to build.
                         </p>
                     </div>
                     <a

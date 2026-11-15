@@ -17,7 +17,7 @@ npm install
 cp .env.example .env
 ```
 
-Configure `.env`, start Ollama, then run:
+Configure `.env` and start Ollama. If image generation is enabled, also start the configured local ComfyUI service. Then run:
 
 ```bash
 npm run check
@@ -42,9 +42,9 @@ Run the complete project check:
 npm run check
 ```
 
-`npm run check` runs lint, tests, and the local setup check. It needs a configured local environment and running Ollama server, but it does not validate the Telegram token remotely.
+`npm run check` runs lint, tests, and the local setup check. It needs a configured local environment and running Ollama server. When image generation is available, it also needs the local ComfyUI queue and private checkpoint setting. It does not validate the Telegram token remotely or run a real generation.
 
-The focused test suite covers core personality, memory edit authorization, and conversation parsing behavior. Manually verify affected Telegram flows, streaming behavior, personality selection, and memory behavior with a test bot when relevant.
+The focused test suite covers personalities, conversation parsing, ordered session memory, image preferences, queueing, and model handoff behavior. Manually verify affected Telegram flows, streaming, personality selection, session continuity, and local image generation with a test bot when relevant.
 
 For static website changes, preview `public/` locally:
 

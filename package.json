@@ -1,7 +1,7 @@
 {
     "name": "fabrexa-ai",
     "version": "3.3.0",
-    "description": "Telegram AI Bot powered by local Ollama models",
+    "description": "Self-hosted Telegram AI with local Ollama replies, ComfyUI images, and session memory",
     "main": "bot.js",
     "type": "module",
     "scripts": {
@@ -17,7 +17,9 @@
         "bot",
         "ai",
         "ollama",
+        "comfyui",
         "local-ai",
+        "session-memory",
         "async"
     ],
     "author": "Ali Sadeghi",

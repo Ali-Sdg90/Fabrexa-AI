@@ -1,6 +1,8 @@
 # Windows autostart helper
 
-This optional helper starts the local services required by Fabrexa after a Windows user signs in. The repository files do not register or run themselves automatically.
+This optional helper starts Ollama and Fabrexa after a Windows user signs in. The repository files do not register or run themselves automatically.
+
+ComfyUI is not started by this helper. When local image generation is enabled, start ComfyUI separately before requesting an image.
 
 ## What it does
 
@@ -78,6 +80,7 @@ Runtime state is stored under `%LOCALAPPDATA%\Fabrexa` and is not part of the re
 - Windows PowerShell
 - Node.js
 - Ollama
+- ComfyUI started separately when local image generation is enabled
 - Nekoray configured with a working VPN profile
 - Installed project dependencies
 - A valid private `.env` file in the repository root

@@ -127,7 +127,7 @@ You are Friendly, a warm, thoughtful, and easygoing assistant.
 
 ## Replies are slow or stop early
 
-Local generation speed depends on the selected model and hardware.
+Local generation speed depends on the selected model, quantization, context size, and available CPU, RAM, GPU, and VRAM. Larger, more capable models generally need more resources and time.
 
 Try a smaller model or reduce these values:
 
@@ -170,6 +170,8 @@ Do not put the checkpoint filename into `src/image/workflow_api.json`, Telegram 
 
 If only one Telegram account has no images, open **Image Settings** and re-enable them. The choice is stored in `chat_memory/users/<telegram-id>/image-generation.json` and applies to every personality.
 
+Fabrexa has no hosted image fallback. The configured ComfyUI service and checkpoint must be available on the host running the image pipeline.
+
 ## GPU handoff fails
 
 Fabrexa will not start ComfyUI generation until the text model is verified as unloaded. After Telegram receives the image, Fabrexa asks ComfyUI to unload its models, verifies VRAM cleanup, and preloads the text model again. Check these items:
@@ -180,6 +182,19 @@ Fabrexa will not start ComfyUI generation until the text model is verified as un
 4. Increase the `OLLAMA_HANDOFF_TIMEOUT_MS` or ComfyUI cleanup timeout only when logs show a real timeout on slower hardware.
 
 Conversation jobs and background session-memory analysis are serialized, but a manually launched external Ollama or ComfyUI job is outside Fabrexa's queue and can still interfere.
+
+## Session memory does not update
+
+Session-memory analysis starts only after the assistant reply and any optional image delivery, cleanup, and text-model recovery are complete. It runs as lower-priority background model work, so a waiting user conversation runs first.
+
+Check these items:
+
+1. Open `chat_memory/<chat-id>/sessions/<session-id>/session-memory.json`, not a file from an older session.
+2. Confirm that the configured `OLLAMA_MODEL` is available; the same model handles replies, scene direction, and memory analysis.
+3. Look for `Session memory analysis failed` in the console output.
+4. Allow the local model to finish. This analysis has no operation timeout, so slower hardware can take longer without being cancelled.
+
+The analyzer intentionally records only developments useful for later continuity. An exchange with no durable story, character, relationship, location, goal, clothing, or object-state change may leave the memory unchanged.
 
 ## Detailed diagnostics
 

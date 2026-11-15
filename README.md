@@ -2,9 +2,9 @@
 
 <img src="./public/images/og-image.jpg" alt="Fabrexa AI Ollama" width="100%" />
 
-Fabrexa is a self-hosted Telegram bot for chatting with an LLM through Ollama and optionally turning each completed reply into a locally generated image through ComfyUI.
+Fabrexa is a self-hosted Telegram bot that runs text and image generation on your own machine. Ollama streams personality-driven replies, optional ComfyUI generation turns the latest scene into an image, and ordered session memory carries important developments into later turns of the same conversation.
 
-It gives a local model a familiar chat interface, streams replies as they are generated, supports custom personalities, and keeps ordered continuity memory inside every chat session.
+You can choose a compact model for everyday hardware or a larger, more capable GGUF text model and ComfyUI checkpoint that fit your system.
 
 [![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![Ollama](https://img.shields.io/badge/Ollama-local_models-111111)](https://ollama.com/)
@@ -13,16 +13,17 @@ It gives a local model a familiar chat interface, streams replies as they are ge
 
 ## What it does
 
-- Connects Telegram to a local Ollama model
+- Runs the configured text model locally through Ollama
 - Streams the generated response into the Telegram chat
 - Keeps recent messages in the active conversation
 - Supports plain-text personality prompts
 - Keeps chronological continuity memory for every personality within each session
-- Directs one continuity-aware image from the active session state and latest exchange, then sends it with a collapsed prompt caption
+- Generates an optional continuity-aware image locally through ComfyUI, then sends it with a collapsed prompt caption
+- Supports Ollama and GGUF model choices sized for the available RAM, VRAM, and compute
 - Lets each Telegram account disable or re-enable automatic images
 - Runs in private owner-only mode by default
 
-Telegram still carries messages between you and the bot. Model inference and Fabrexa's conversation files stay on the machine running the project.
+Telegram still carries messages and delivered photos between you and the bot. Text inference, image generation, and Fabrexa's conversation files stay on the machine running the project.
 
 ## How it works
 
@@ -35,15 +36,20 @@ Fabrexa
    └── session continuity memory
    ↓
 Ollama on your computer
-   ├── streamed reply in Telegram
-   └── appearance + session continuity + latest exchange
-           ↓
-       ComfyUI image
-           ↓
-       Telegram photo + collapsed direction prompt
+   ├── streamed reply → Telegram
+   └── when images are enabled
+         └── appearance + session continuity + latest exchange
+                    ↓
+                local ComfyUI → Telegram photo
+   ↓ after reply and optional image cleanup
+Background session-memory analysis
+   ↓
+Ordered session state for the next turn
 ```
 
 Fabrexa sends the active personality prompt, up to 24 recent conversation messages, the active session's bounded continuity memory, and the new message to Ollama. Recent history has an approximate 4096-token budget and is shortened from the oldest message when needed so the prompt and reply still fit the configured context window. The response is streamed back to Telegram. When automatic images are enabled, the same text model directs one still image using the selected character's separate appearance file, ordered session continuity memory, and the latest user/assistant exchange. Fabrexa records the direction, unloads the text model, runs the local ComfyUI workflow, sends the photo, unloads the image model, and preloads the text model again.
+
+After the reply and optional image pipeline are complete, background analysis extracts only important continuity facts from the latest exchange and appends them to the active session memory. Future replies and image direction can then follow the ordered state of that session. A new chat starts with empty session memory.
 
 ## Requirements
 
@@ -53,6 +59,7 @@ Fabrexa sends the active personality prompt, up to 24 recent conversation messag
 - A bot token created with [@BotFather](https://t.me/botfather)
 - Your numeric Telegram user ID when private mode is enabled
 - Your public Telegram username when private mode is enabled
+- Enough RAM or VRAM for the local text model and optional image checkpoint you select
 
 ## Installation
 
@@ -79,6 +86,8 @@ ollama run hf.co/<publisher>/<model>-GGUF:Q4_K_M
 ```
 
 Use the exact model reference from the model page as `OLLAMA_MODEL`. See the [official Hugging Face Ollama guide](https://huggingface.co/docs/hub/ollama) for details.
+
+Model quality and speed depend on the model, quantization, and your hardware. Fabrexa does not lock you to the example model: choose the strongest local text model your machine can run reliably, and choose the ComfyUI checkpoint separately for image generation.
 
 ### 3. Configure Fabrexa
 
@@ -136,7 +145,7 @@ Fabrexa responds to normal text messages and provides three quick actions:
 
 ## Automatic images
 
-Automatic images are enabled by default for every personality. The preference is stored per Telegram user, so changing personalities or starting a new chat does not reset it.
+Automatic images are generated through your local ComfyUI instance; Fabrexa does not use a hosted image API. They are enabled by default for every personality. The preference is stored per Telegram user, so changing personalities or starting a new chat does not reset it.
 
 The image director receives four isolated inputs: the selected character's appearance file for stable identity traits and defaults; ordered continuity memory from earlier turns in the active session; the latest assistant reply for the immediate narrative moment; and the latest user message for the requested scene and changes. Later memory entries override earlier conflicting state, the latest exchange overrides memory, and explicit details in the latest user message take precedence when the two latest messages conflict. All source blocks are treated as data rather than instructions. The director never receives the personality system prompt or raw earlier history outside the supplied session memory. If `src/image/additional-scene-prompt.txt` exists and contains text, its private instructions are appended to the main scene-director system prompt; when it is missing or empty, only `src/image/scene-director.txt` is used. The optional path can be changed with `IMAGE_ADDITIONAL_SCENE_PROMPT_PATH`. The prompt specifies the exact number of visible people, puts each depicted person's gender in parentheses after every name, and includes a time of day and plausible clock time. The assistant character stays visually dominant, while the user is omitted unless their physical presence is necessary. The generated direction is saved both as a non-conversational session artifact and under `chat_memory/users/<telegram-id>/image-generation.json`; artifacts are deliberately excluded from later chat context.
 
@@ -146,7 +155,7 @@ Every generated photo has a **Regenerate** button. It looks up the complete save
 
 Before streaming starts, a compact placeholder shows the text model, image model, active personality, and session-memory state. The first streamed text chunk immediately replaces that placeholder. After the photo is delivered, Fabrexa prints per-stage timings for queueing, text preparation/generation/delivery, scene direction, model handoff, image generation/delivery, cleanup, and the full request, then stores the same report as a non-conversational artifact in the active session file.
 
-## Memory
+## Session memory
 
 Conversation history and session continuity memory are separate:
 
@@ -198,7 +207,7 @@ The complete reference is in [`.env.example`](./.env.example) and [Project Guide
 npm start               # Start the bot
 npm run dev             # Start using Node's .env loader
 npm run check           # Run lint, tests, and the local setup check
-npm run check:setup     # Check environment values, Ollama, and the model
+npm run check:setup     # Check environment values and configured local model services
 npm run lint            # Run ESLint
 npm test                # Run the focused automated tests
 ```
