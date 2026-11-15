@@ -1,4 +1,4 @@
-.PHONY: help install run dev check memory-process clean update lint
+.PHONY: help install run dev check clean update lint
 
 help:
 	@echo "Fabrexa AI Bot - Available Commands"
@@ -7,7 +7,6 @@ help:
 	@echo "make run           - Run the bot"
 	@echo "make dev           - Run in development mode"
 	@echo "make check         - Verify setup and dependencies"
-	@echo "make memory-process - Run memory processor manually"
 	@echo "make clean         - Clean node_modules and lockfile"
 	@echo "make update        - Update dependencies"
 	@echo "make lint          - Run ESLint"
@@ -23,9 +22,6 @@ dev:
 
 check:
 	npm run check
-
-memory-process:
-	npm run memory-process
 
 clean:
 	rm -rf node_modules

@@ -7,61 +7,12 @@ import {
     BUTTONS,
     quickKeyboard,
     buildPersonalityMenu,
-    buildMemoryKeyboard,
     buildImageSettingsKeyboard,
     imageSettingsMessage,
 } from "../utils/keyboards.js";
-import {
-    createNewChatSession,
-    loadSmartMemory,
-    getMemoryStats,
-    getChatState,
-} from "../../memory/index.js";
-import { PERSONALITIES } from "../../personalities/index.js";
-import { getMemoryAccessLabel, hasMemoryAccess } from "../../memory/access.js";
+import { createNewChatSession } from "../../memory/index.js";
 import { IMAGE_GENERATION_AVAILABLE } from "../../config/index.js";
 import { imagePreferences } from "../../image/runtime.js";
-
-async function getCurrentPersonality(chatId) {
-    const chatState = await getChatState(chatId);
-    return (
-        PERSONALITIES[chatState.personality] ||
-        PERSONALITIES[Object.keys(PERSONALITIES)[0]]
-    );
-}
-
-async function requireMemoryAccess(ctx) {
-    const personality = await getCurrentPersonality(ctx.chat.id);
-    if (hasMemoryAccess(personality)) {
-        return true;
-    }
-
-    await ctx.reply(
-        `🧠 Memory is only enabled for ${getMemoryAccessLabel()}. Current personality: ${personality.name}.`,
-    );
-    return false;
-}
-
-function formatMemoryList(memoryEntries) {
-    if (!memoryEntries.length) {
-        return "No long-term memories saved yet.";
-    }
-
-    return memoryEntries
-        .map((entry, idx) => {
-            const timestamp = entry.updatedAt || entry.createdAt || "unknown time";
-            const displayTime = timestamp.replace("T", " ").replace("Z", "");
-            const importance =
-                typeof entry.importance === "number"
-                    ? entry.importance.toFixed(2)
-                    : "0.00";
-            const content = entry.content || "";
-            return `• ${idx + 1}. [${displayTime}] ${entry.category || "other"} | importance ${importance} — ${content.substring(0, 120)}${
-                content.length > 120 ? "..." : ""
-            }`;
-        })
-        .join("\n");
-}
 
 export function registerQuickActionHandlers(bot) {
     bot.hears([BUTTONS.imageSettings, "Image Settings"], async (ctx) => {
@@ -89,21 +40,4 @@ export function registerQuickActionHandlers(bot) {
             );
         },
     );
-
-    bot.hears([BUTTONS.showMemory, "Show Memory"], async (ctx) => {
-        if (!isOwner(ctx)) return replyNotOwner(ctx);
-        if (!(await requireMemoryAccess(ctx))) return;
-
-        const memStats = await getMemoryStats(ctx.chat.id);
-        const memoryEntries = await loadSmartMemory(ctx.chat.id, [], 10);
-
-        const memoryInfo = `📊 Long-Term Memory Stats:
-• Total entries: ${memStats.totalEntries}
-• Average importance: ${memStats.averageImportance}
-
-🧠 Stored long-term memories:
-${formatMemoryList(memoryEntries)}`;
-
-        await ctx.reply(memoryInfo, buildMemoryKeyboard(memoryEntries));
-    });
 }

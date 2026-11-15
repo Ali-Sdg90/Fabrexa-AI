@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta
             name="description"
-            content="Fabrexa AI Ollama is a self-hosted Telegram bot for chatting with local Ollama models, using custom personalities and optional short-term and long-term memory."
+            content="Fabrexa AI Ollama is a self-hosted Telegram bot for chatting with local Ollama models, using custom personalities and per-session continuity memory."
         />
         <meta name="author" content="Ali Sadeghi" />
         <meta name="application-name" content="Fabrexa AI Ollama" />
@@ -30,7 +30,7 @@
         />
         <meta
             property="og:description"
-            content="A self-hosted Telegram bot for chatting with local Ollama models, with custom personalities and optional short-term and long-term memory."
+            content="A self-hosted Telegram bot for chatting with local Ollama models, with custom personalities and per-session continuity memory."
         />
         <meta property="og:type" content="website" />
         <meta
@@ -61,7 +61,7 @@
         />
         <meta
             name="twitter:description"
-            content="A self-hosted Telegram bot for chatting with local Ollama models, with custom personalities and optional short-term and long-term memory."
+            content="A self-hosted Telegram bot for chatting with local Ollama models, with custom personalities and per-session continuity memory."
         />
         <meta
             name="twitter:image"
@@ -77,7 +77,7 @@
                 "@context": "https://schema.org",
                 "@type": "SoftwareApplication",
                 "name": "Fabrexa AI Ollama",
-                "description": "A self-hosted Telegram bot for chatting with local Ollama models, with custom personalities and optional short-term and long-term memory.",
+                "description": "A self-hosted Telegram bot for chatting with local Ollama models, with custom personalities and per-session continuity memory.",
                 "url": "https://ali-sdg.is-a.dev/Fabrexa-AI-Ollama/",
                 "image": "https://ali-sdg.is-a.dev/Fabrexa-AI-Ollama/images/og-image.jpg",
                 "codeRepository": "https://github.com/Ali-Sdg90/Fabrexa-AI-Ollama",
@@ -136,7 +136,6 @@
                     aria-label="Main navigation"
                 >
                     <a href="#overview">Overview</a>
-                    <a href="#inside-the-bot">Inside the bot</a>
                     <a href="#install">Install</a>
                     <a
                         class="github-link"
@@ -159,9 +158,9 @@
                         <p class="hero-lead">
                             Fabrexa AI Ollama connects Telegram to a model
                             running on your computer. Send it a message and
-                            choose how it should respond. When enabled,
-                            short-term and long-term memory keep useful context
-                            between conversations.
+                            choose how it should respond. Each chat session
+                            keeps ordered continuity for later turns in that
+                            same conversation.
                         </p>
                         <div class="hero-actions">
                             <a class="button button-primary" href="#install"
@@ -212,7 +211,7 @@
                         <p class="overview-intro">
                             Telegram is the interface. Ollama runs the model.
                             Fabrexa sits between them and handles the
-                            conversation, personalities, and memory.
+                            conversation, personalities, and session memory.
                         </p>
                         <div class="plain-features">
                             <article>
@@ -240,73 +239,14 @@
                                 </p>
                             </article>
                             <article>
-                                <h3>Optional memory</h3>
+                                <h3>Session continuity</h3>
                                 <p>
-                                    Friendly and Vent Girl use memory by default.
-                                    You can change the list, then view, edit, or
-                                    remove what has been saved.
+                                    Every personality keeps important story and
+                                    character state in the active session. A new
+                                    chat starts with fresh memory.
                                 </p>
                             </article>
                         </div>
-                    </div>
-                </div>
-            </section>
-
-            <section class="product section" id="inside-the-bot">
-                <div class="container">
-                    <div class="section-heading" data-reveal>
-                        <div>
-                            <p class="section-label">Inside the bot</p>
-                            <h2>No new app to learn.</h2>
-                        </div>
-                        <p>
-                            Normal messages go straight to the active model. The
-                            menu keeps the few recurring actions close at hand.
-                        </p>
-                    </div>
-
-                    <div class="screenshots">
-                        <figure class="screenshot screenshot-chat" data-reveal>
-                            <div class="screenshot-image">
-                                <img
-                                    src="images/chating-w-bot.png"
-                                    alt="Fabrexa AI Ollama responding to a Telegram message as Sherlock Holmes"
-                                    width="1234"
-                                    height="2215"
-                                    loading="lazy"
-                                />
-                            </div>
-                            <figcaption>
-                                <strong>Just send a message.</strong>
-                                <span
-                                    >The reply is streamed back into the same
-                                    Telegram chat.</span
-                                >
-                            </figcaption>
-                        </figure>
-
-                        <figure
-                            class="screenshot screenshot-personality"
-                            data-reveal
-                            data-reveal-delay="90"
-                        >
-                            <div class="screenshot-image">
-                                <img
-                                    src="images/change-personality.png"
-                                    alt="The personality picker and quick actions in Fabrexa AI Ollama"
-                                    width="1046"
-                                    height="1481"
-                                    loading="lazy"
-                                />
-                            </div>
-                            <figcaption>
-                                <strong>Change the way it responds.</strong>
-                                <span
-                                    >Choose a personality, start a new chat, or
-                                    inspect memory.</span
-                                >
-                            </figcaption>
-                        </figure>
                     </div>
                 </div>
             </section>
@@ -329,7 +269,7 @@
                                 <h3>Fabrexa prepares the context</h3>
                                 <p>
                                     It adds the active personality, recent chat,
-                                    and allowed memory.
+                                    and bounded session continuity memory.
                                 </p>
                             </div>
                         </li>
@@ -580,7 +520,7 @@ npm start</code></pre>
                     <div>
                         <h2>Use it as it is, or make it your own.</h2>
                         <p>
-                            Change the model, personality, or memory behavior.
+                            Change the model, personality, or image behavior.
                             The codebase is small enough to make your own.
                         </p>
                     </div>

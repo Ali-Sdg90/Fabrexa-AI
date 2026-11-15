@@ -154,45 +154,6 @@ Telegram response edits are intentionally limited. `TELEGRAM_STREAM_EDIT_INTERVA
 
 Personality files are loaded when the process starts, not while it is running.
 
-## Memory is disabled
-
-Memory access is controlled per personality:
-
-```env
-MEMORY_ENABLED_PERSONALITIES=Friendly,Vent Girl
-```
-
-Friendly and Vent Girl use memory by default. Use the filename without `.txt`, or the displayed `Name` value. Separate multiple entries with commas and restart the bot after changing the setting.
-
-An empty value disables short-term and long-term memory for every personality:
-
-```env
-MEMORY_ENABLED_PERSONALITIES=
-```
-
-## No long-term memories appear
-
-This can be normal. The analyzer skips small talk and facts it does not consider useful. Saved short-term entries also need to meet the promotion rules before they become long-term memories.
-
-Run the processor manually:
-
-```bash
-npm run memory-process
-```
-
-Check that the active personality is listed in `MEMORY_ENABLED_PERSONALITIES` and inspect `chat_memory/<chat-id>/memory-short-term.json` for local diagnostic use.
-
-## The memory processor does not start
-
-Validate the cron expression:
-
-```env
-MEMORY_PROCESSOR_CRON="0 0 * * *"
-MEMORY_PROCESSOR_TIMEZONE=Asia/Tehran
-```
-
-`npm run check` validates the cron expression. The timezone must be a valid IANA timezone supported by the installed runtime.
-
 ## Automatic images do not start
 
 Run `npm run check:setup`. With automatic images available, it verifies that the private checkpoint setting exists, the workflow and scene-director files are present, and the local ComfyUI `/queue` endpoint responds.
@@ -218,7 +179,7 @@ Fabrexa will not start ComfyUI generation until the text model is verified as un
 3. The `/queue`, `/system_stats`, and `/free` ComfyUI endpoints are available.
 4. Increase the `OLLAMA_HANDOFF_TIMEOUT_MS` or ComfyUI cleanup timeout only when logs show a real timeout on slower hardware.
 
-Conversation jobs and scheduled memory processing are serialized, but a manually launched external Ollama or ComfyUI job is outside Fabrexa's queue and can still interfere.
+Conversation jobs and background session-memory analysis are serialized, but a manually launched external Ollama or ComfyUI job is outside Fabrexa's queue and can still interfere.
 
 ## Detailed diagnostics
 
@@ -228,7 +189,7 @@ Enable development logging temporarily:
 LOG_MODE=dev-mode
 ```
 
-Restart the bot and reproduce the issue. These logs can contain the full Ollama payload, personality prompt, conversation history, and memory context. Do not publish them without reviewing the contents.
+Restart the bot and reproduce the issue. These logs can contain the full Ollama payload, personality prompt, conversation history, and session-memory context. Do not publish them without reviewing the contents.
 
 Return to normal logging afterward:
 
@@ -238,6 +199,6 @@ LOG_MODE=normal
 
 ## Resetting local runtime data
 
-Starting a new chat from Telegram is the safest way to clear current conversational context while preserving long-term memory.
+Starting a new chat from Telegram creates fresh conversational context and an empty session memory.
 
-The `chat_memory/` folder contains conversation and memory files. Back it up before manually changing or removing anything. Deleting it permanently removes the bot's local conversation state and saved memories.
+The `chat_memory/` folder contains conversation sessions and their continuity-memory files. Back it up before manually changing or removing anything. Deleting it permanently removes the bot's local conversation state and saved session memories.

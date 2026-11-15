@@ -3,7 +3,6 @@
 import fs from "fs";
 import { execFileSync } from "child_process";
 import dotenv from "dotenv";
-import cron from "node-cron";
 
 dotenv.config({ path: ".env" });
 
@@ -216,15 +215,6 @@ addCheck(
     Number.isInteger(sessionMemoryMaxPromptTokens) &&
         sessionMemoryMaxPromptTokens > 0,
     `${sessionMemoryMaxPromptTokens || "invalid"} approximate tokens`,
-);
-
-const memoryProcessorCron = process.env.MEMORY_PROCESSOR_CRON || "0 0 * * *";
-const memoryProcessorTimezone =
-    process.env.MEMORY_PROCESSOR_TIMEZONE || "Asia/Tehran";
-addCheck(
-    "Memory processor cron",
-    cron.validate(memoryProcessorCron),
-    `${memoryProcessorCron} (${memoryProcessorTimezone})`,
 );
 
 const ollamaBaseUrl = (process.env.OLLAMA_BASE_URL?.trim() || "http://127.0.0.1:11434").replace(

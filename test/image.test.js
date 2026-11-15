@@ -103,7 +103,7 @@ test("scene direction separates ordered session memory, appearance, and latest m
     assert.doesNotMatch(request.payload.messages[1].content, /conversation history content/);
     assert.match(
         request.payload.messages[1].content,
-        /no earlier raw conversation history or long-term memory/i,
+        /no earlier raw conversation history beyond the supplied session continuity memory/i,
     );
 });
 
@@ -168,7 +168,7 @@ test("scene director appends optional private instructions only when available",
     assert.equal(receivedRequests[1].sessionMemory, "ordered memory two");
 });
 
-test("chat, memory analysis, and scene direction share one text model", () => {
+test("chat, session-memory analysis, and scene direction share one text model", () => {
     assert.equal(OLLAMA_ANALYZER_MODEL, OLLAMA_MODEL);
 });
 
@@ -637,7 +637,7 @@ test("conversation queue runs model-sensitive jobs serially", async () => {
     assert.deepEqual(events, ["first-start", "first-end", "second-start"]);
 });
 
-test("conversation queue runs foreground work before waiting memory analysis", async () => {
+test("conversation queue runs foreground work before waiting session-memory analysis", async () => {
     const queue = new SerialTaskQueue({ maxSize: 3 });
     const events = [];
     let releaseFirst;
@@ -650,9 +650,9 @@ test("conversation queue runs foreground work before waiting memory analysis", a
         await firstGate;
         events.push("first-end");
     });
-    const memory = queue.add(
+    const sessionMemory = queue.add(
         async () => {
-            events.push("memory");
+            events.push("session-memory");
         },
         { priority: "background" },
     );
@@ -662,12 +662,12 @@ test("conversation queue runs foreground work before waiting memory analysis", a
 
     await new Promise((resolve) => setImmediate(resolve));
     releaseFirst();
-    await Promise.all([first.promise, memory.promise, nextMessage.promise]);
+    await Promise.all([first.promise, sessionMemory.promise, nextMessage.promise]);
     assert.deepEqual(events, [
         "first-start",
         "first-end",
         "next-message",
-        "memory",
+        "session-memory",
     ]);
 });
 

@@ -11,7 +11,6 @@ import {
     TELEGRAM_STREAM_EDIT_INTERVAL_MS,
 } from "../../config/index.js";
 import { PERSONALITIES } from "../../personalities/index.js";
-import { buildMemoryKeyboard } from "../utils/keyboards.js";
 import { isOwner, replyNotOwner } from "../middleware/ownerCheck.js";
 import {
     getChatState,
@@ -19,13 +18,8 @@ import {
     appendChatMessage,
     loadRecentConversation,
     getSessionMemoryForPrompt,
-    loadSmartMemory,
-    getLongTermMemoryForPrompt,
-    smartSaveMessage,
-    updateMemoryEntry,
 } from "../../memory/index.js";
 import { analyzeAndSaveSessionTurn } from "../../memory/sessionMemory.js";
-import { getMemoryAccessLabel, hasMemoryAccess } from "../../memory/access.js";
 import {
     aiClient,
     conversationQueue,
@@ -43,7 +37,6 @@ import {
     buildPipelineTimingReport,
     compactTimingReport,
 } from "../../image/timing.js";
-import { getPendingMemoryEdit, deletePendingMemoryEdit } from "./actions.js";
 
 const STREAM_EDIT_DELAY_SEQUENCE_MS = [
     TELEGRAM_STREAM_EDIT_INTERVAL_MS,
@@ -71,7 +64,6 @@ export function formatModelDisplayName(value, maxWords = 4) {
 
 export function buildProcessingMessage({
     personalityName,
-    memoryEnabled,
     imageEnabled,
     textModel = OLLAMA_MODEL,
     imageModel = COMFYUI_CHECKPOINT_NAME,
@@ -86,7 +78,7 @@ export function buildProcessingMessage({
         "⏳ Processing...",
         `💬 Text→Text: ${textLabel}`,
         `🎨 Text→Image: ${imageLabel}`,
-        `🎭 ${character} · Memory ${memoryEnabled ? "on" : "off"}`,
+        `🎭 ${character} · Session memory on`,
     ].join("\n");
 }
 
@@ -277,7 +269,6 @@ async function processConversation({
     userId,
     imageEnabled,
     personality,
-    memoryAccess,
     sessionId,
     receivedAt,
     queuedAt,
@@ -308,21 +299,8 @@ async function processConversation({
         ctx.chat.id,
         sessionId,
     );
-    const memoryContext = memoryAccess
-        ? await getLongTermMemoryForPrompt(ctx.chat.id, 30)
-        : "";
 
     await appendChatMessage(ctx.chat.id, "user", userMessage, null, sessionId);
-    if (memoryAccess) {
-        const userSaved = await smartSaveMessage(
-            ctx.chat.id,
-            "user",
-            userMessage,
-        );
-        console.log(
-            `🧠 Short-term memory queue: ${userSaved ? "saved" : "skipped"}`,
-        );
-    }
     messageTimings.contextPreparationMs = Date.now() - phaseStartedAt;
 
     await ctx.sendChatAction("typing");
@@ -335,7 +313,6 @@ async function processConversation({
         userMessage,
         personality,
         recentHistory,
-        memoryContext,
         async (partialText) => {
             const now = Date.now();
             const preview = getEditablePreview(partialText);
@@ -460,55 +437,6 @@ function startBackgroundTask(promise, ctx, processingMessage) {
     });
 }
 export function registerMessageHandler(bot) {
-    bot.on("message", async (ctx, next) => {
-        if (!ctx.message?.text) return;
-
-        const userId = ctx.from?.id;
-        const editId = getPendingMemoryEdit(ctx.chat.id, userId);
-        const text = ctx.message.text.trim();
-
-        if (!editId) {
-            if (text.startsWith("/")) return;
-            return next();
-        }
-
-        if (!isOwner(ctx)) return replyNotOwner(ctx);
-
-        if (text.toLowerCase() === "cancel" || text.toLowerCase() === "لغو") {
-            deletePendingMemoryEdit(ctx.chat.id, userId);
-            await ctx.reply("✋ Memory edit canceled.");
-            return;
-        }
-        if (text.startsWith("/")) return;
-
-        const chatState = await getChatState(ctx.chat.id);
-        const personality =
-            PERSONALITIES[chatState.personality] ||
-            PERSONALITIES[Object.keys(PERSONALITIES)[0]];
-        if (!hasMemoryAccess(personality)) {
-            deletePendingMemoryEdit(ctx.chat.id, userId);
-            await ctx.reply(
-                `🧠 Memory editing is only enabled for ${getMemoryAccessLabel()}. Current personality: ${personality.name}.`,
-            );
-            return;
-        }
-
-        const updated = await updateMemoryEntry(ctx.chat.id, editId, text);
-        deletePendingMemoryEdit(ctx.chat.id, userId);
-        if (updated) {
-            await ctx.reply("✅ Memory entry updated.");
-            const memoryEntries = await loadSmartMemory(ctx.chat.id, [], 10);
-            await ctx.reply(
-                "📝 Here is your updated memory list:",
-                buildMemoryKeyboard(memoryEntries),
-            );
-        } else {
-            await ctx.reply(
-                "⚠️ Could not update the memory entry. It may no longer exist.",
-            );
-        }
-    });
-
     bot.on("message", async (ctx) => {
         if (!ctx.message?.text) return;
         if (!isOwner(ctx)) return replyNotOwner(ctx);
@@ -528,11 +456,9 @@ export function registerMessageHandler(bot) {
         const personality =
             PERSONALITIES[chatState.personality] ||
             PERSONALITIES[Object.keys(PERSONALITIES)[0]];
-        const memoryAccess = hasMemoryAccess(personality);
         const processingMessage = await ctx.reply(
             buildProcessingMessage({
                 personalityName: personality.name,
-                memoryEnabled: memoryAccess,
                 imageEnabled,
             }),
         );
@@ -549,7 +475,6 @@ export function registerMessageHandler(bot) {
                     userId,
                     imageEnabled,
                     personality,
-                    memoryAccess,
                     sessionId: chatState.currentSession,
                     receivedAt,
                     queuedAt,

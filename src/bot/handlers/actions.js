@@ -6,7 +6,6 @@ import { isOwner, replyNotOwner } from "../middleware/ownerCheck.js";
 import {
     mainMenu,
     buildPersonalityMenu,
-    buildMemoryKeyboard,
     buildImageSettingsKeyboard,
     imageSettingsMessage,
 } from "../utils/keyboards.js";
@@ -14,64 +13,9 @@ import { PERSONALITIES } from "../../personalities/index.js";
 import {
     createNewChatSession,
     updateChatPersonality,
-    loadSmartMemory,
-    getMemoryStats,
-    deleteMemoryEntry,
-    getChatState,
 } from "../../memory/index.js";
-import { getMemoryAccessLabel, hasMemoryAccess } from "../../memory/access.js";
 import { IMAGE_GENERATION_AVAILABLE } from "../../config/index.js";
 import { imagePreferences } from "../../image/runtime.js";
-
-const pendingMemoryEdit = new Map();
-
-function getPendingMemoryEditKey(chatId, userId) {
-    return `${chatId}:${userId}`;
-}
-
-async function getCurrentPersonality(chatId) {
-    const chatState = await getChatState(chatId);
-    return (
-        PERSONALITIES[chatState.personality] ||
-        PERSONALITIES[Object.keys(PERSONALITIES)[0]]
-    );
-}
-
-async function requireMemoryAccess(ctx) {
-    const personality = await getCurrentPersonality(ctx.chat.id);
-    if (hasMemoryAccess(personality)) {
-        return true;
-    }
-
-    const message = `🧠 Memory is only enabled for ${getMemoryAccessLabel()}. Current personality: ${personality.name}.`;
-    if (typeof ctx.answerCbQuery === "function") {
-        await ctx.answerCbQuery(message, { show_alert: true });
-    } else {
-        await ctx.reply(message);
-    }
-    return false;
-}
-
-function formatMemoryList(memoryEntries) {
-    if (!memoryEntries.length) {
-        return "No long-term memories saved yet.";
-    }
-
-    return memoryEntries
-        .map((entry, idx) => {
-            const timestamp = entry.updatedAt || entry.createdAt || "unknown time";
-            const displayTime = timestamp.replace("T", " ").replace("Z", "");
-            const importance =
-                typeof entry.importance === "number"
-                    ? entry.importance.toFixed(2)
-                    : "0.00";
-            const content = entry.content || "";
-            return `• ${idx + 1}. [${displayTime}] ${entry.category || "other"} | importance ${importance} — ${content.substring(0, 120)}${
-                content.length > 120 ? "..." : ""
-            }`;
-        })
-        .join("\n");
-}
 
 export function registerActionHandlers(bot) {
     bot.action("show_image_settings", async (ctx) => {
@@ -109,7 +53,7 @@ export function registerActionHandlers(bot) {
         await createNewChatSession(ctx.chat.id);
         await ctx.answerCbQuery("✨ New chat session created.");
         await ctx.reply(
-            "✨ New chat session started. Long-term memory stays available for memory-enabled personalities.",
+            "✨ New chat session started with fresh session memory.",
             mainMenu,
         );
     });
@@ -142,73 +86,4 @@ export function registerActionHandlers(bot) {
             `✨ Personality updated to ${PERSONALITIES[personalityKey].name}.\n\n🆕 New chat session started for this personality.`,
         );
     });
-
-    bot.action("show_memory", async (ctx) => {
-        if (!isOwner(ctx)) return replyNotOwner(ctx, true);
-        if (!(await requireMemoryAccess(ctx))) return;
-
-        const memStats = await getMemoryStats(ctx.chat.id);
-        const memoryEntries = await loadSmartMemory(ctx.chat.id, [], 10);
-
-        const memoryInfo = `📊 Long-Term Memory Stats:
-• Total entries: ${memStats.totalEntries}
-• Average importance: ${memStats.averageImportance}
-
-🧠 Stored long-term memories:
-${formatMemoryList(memoryEntries)}`;
-
-        await ctx.answerCbQuery();
-        await ctx.editMessageText(
-            memoryInfo,
-            buildMemoryKeyboard(memoryEntries),
-        );
-    });
-
-    bot.action(/memory_delete_(.+)/, async (ctx) => {
-        if (!isOwner(ctx)) return replyNotOwner(ctx, true);
-        if (!(await requireMemoryAccess(ctx))) return;
-
-        const memoryId = ctx.match[1];
-        await ctx.answerCbQuery();
-        const deleted = await deleteMemoryEntry(ctx.chat.id, memoryId);
-        if (!deleted) {
-            await ctx.reply(
-                "⚠️ Memory entry not found or could not be deleted.",
-            );
-            return;
-        }
-
-        const memoryEntries = await loadSmartMemory(ctx.chat.id, [], 10);
-        await ctx.editMessageText(
-            "🗑️ Memory entry archived.",
-            buildMemoryKeyboard(memoryEntries),
-        );
-    });
-
-    bot.action(/memory_edit_(.+)/, async (ctx) => {
-        if (!isOwner(ctx)) return replyNotOwner(ctx, true);
-        if (!(await requireMemoryAccess(ctx))) return;
-
-        const memoryId = ctx.match[1];
-        await ctx.answerCbQuery();
-        setPendingMemoryEdit(ctx.chat.id, ctx.from.id, memoryId);
-        await ctx.reply(
-            "✍️ Send the new long-term memory text for this entry, or type cancel.",
-        );
-    });
-}
-
-export function getPendingMemoryEdit(chatId, userId) {
-    return pendingMemoryEdit.get(getPendingMemoryEditKey(chatId, userId));
-}
-
-export function deletePendingMemoryEdit(chatId, userId) {
-    pendingMemoryEdit.delete(getPendingMemoryEditKey(chatId, userId));
-}
-
-export function setPendingMemoryEdit(chatId, userId, memoryId) {
-    pendingMemoryEdit.set(
-        getPendingMemoryEditKey(chatId, userId),
-        memoryId,
-    );
 }

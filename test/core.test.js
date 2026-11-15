@@ -7,7 +7,6 @@ process.env.TELEGRAM_BOT_TOKEN = "test-token";
 process.env.OWNER_ID = "1001";
 process.env.OWNER_USERNAME = "fabrexa_owner";
 process.env.BOT_PRIVATE = "true";
-process.env.MEMORY_ENABLED_PERSONALITIES = "Friendly,Vent Girl";
 process.env.OLLAMA_NUM_CTX = "8192";
 process.env.OLLAMA_MAX_TOKENS = "512";
 process.env.OLLAMA_MIN_RESPONSE_WORDS = "250";
@@ -18,17 +17,13 @@ process.env.PERSONALITY_INSTRUCTION =
     "Write substantial, fully developed responses.";
 
 const { PERSONALITIES } = await import("../src/personalities/index.js");
-const {
-    getPendingMemoryEdit,
-    setPendingMemoryEdit,
-    deletePendingMemoryEdit,
-} = await import("../src/bot/handlers/actions.js");
+const { BUTTONS, mainMenu, quickKeyboard } = await import(
+    "../src/bot/utils/keyboards.js"
+);
 const {
     buildProcessingMessage,
     formatModelDisplayName,
-    registerMessageHandler,
 } = await import("../src/bot/handlers/messages.js");
-const { getMemoryService } = await import("../src/memory/memoryService.js");
 const {
     appendChatMessage,
     createNewChatSession,
@@ -47,20 +42,9 @@ const {
     estimateTokenCount,
     selectRecentHistory,
 } = await import("../src/ai/client.js");
-const { hasMemoryAccess } = await import("../src/memory/access.js");
 const { PRIVATE_ACCESS_MESSAGE, replyNotOwner } = await import(
     "../src/bot/middleware/ownerCheck.js"
 );
-
-function getMessageHandlers() {
-    const handlers = [];
-    registerMessageHandler({
-        on(event, handler) {
-            if (event === "message") handlers.push(handler);
-        },
-    });
-    return handlers;
-}
 
 function createContext(chatId, userId, text) {
     return {
@@ -73,11 +57,6 @@ function createContext(chatId, userId, text) {
             return { message_id: this.replies.length };
         },
     };
-}
-
-async function dispatchMessage(ctx) {
-    const [pendingEditHandler, regularMessageHandler] = getMessageHandlers();
-    await pendingEditHandler(ctx, () => regularMessageHandler(ctx));
 }
 
 test("the four demo personalities and Friendly default are available", () => {
@@ -97,10 +76,6 @@ test("the four demo personalities and Friendly default are available", () => {
     assert.equal(PERSONALITIES.Friendly.name, "Friendly");
     assert.equal(PERSONALITIES.Friendly.key, "Friendly");
     assert.equal(PERSONALITIES.friendly, PERSONALITIES.Friendly);
-    assert.equal(hasMemoryAccess(PERSONALITIES.Friendly), true);
-    assert.equal(hasMemoryAccess(PERSONALITIES["Vent Girl"]), true);
-    assert.equal(hasMemoryAccess(PERSONALITIES["Elara Voss"]), false);
-    assert.equal(hasMemoryAccess(PERSONALITIES["Sherlock Holmes"]), false);
     assert.match(
         PERSONALITIES.Friendly.prompt,
         /warm, thoughtful, and easygoing assistant/i,
@@ -128,7 +103,6 @@ test("processing status shows concise text and image model details", () => {
     assert.equal(
         buildProcessingMessage({
             personalityName: "Roxy",
-            memoryEnabled: true,
             imageEnabled: true,
             textModel: "gemma3:12b",
             imageModel: "cyberpony.safetensors",
@@ -137,36 +111,27 @@ test("processing status shows concise text and image model details", () => {
             "⏳ Processing...",
             "💬 Text→Text: gemma3 12b",
             "🎨 Text→Image: cyberpony",
-            "🎭 Roxy · Memory on",
+            "🎭 Roxy · Session memory on",
         ].join("\n"),
     );
 });
 
-test("another group user cannot complete or cancel an owner's pending edit", async () => {
-    const chatId = `test-unauthorized-${process.pid}`;
-    const ownerId = 1001;
-    const otherUserId = 2002;
-
-    setPendingMemoryEdit(chatId, ownerId, "memory-owner");
-    try {
-        const cancelContext = createContext(chatId, otherUserId, "cancel");
-        await dispatchMessage(cancelContext);
-        assert.equal(
-            getPendingMemoryEdit(chatId, ownerId),
-            "memory-owner",
-        );
-        assert.deepEqual(cancelContext.replies, [PRIVATE_ACCESS_MESSAGE]);
-
-        const editContext = createContext(chatId, otherUserId, "Changed text");
-        await dispatchMessage(editContext);
-        assert.equal(
-            getPendingMemoryEdit(chatId, ownerId),
-            "memory-owner",
-        );
-        assert.deepEqual(editContext.replies, [PRIVATE_ACCESS_MESSAGE]);
-    } finally {
-        deletePendingMemoryEdit(chatId, ownerId);
-    }
+test("Telegram menus expose no legacy memory controls", () => {
+    assert.deepEqual(Object.keys(BUTTONS).sort(), [
+        "changePersonality",
+        "imageSettings",
+        "newChat",
+    ]);
+    assert.deepEqual(
+        mainMenu.reply_markup.inline_keyboard.flat().map((button) =>
+            button.callback_data,
+        ),
+        ["new_chat", "configure_personality", "show_image_settings"],
+    );
+    assert.deepEqual(
+        quickKeyboard.reply_markup.keyboard.flat().map((button) => button.text),
+        [BUTTONS.newChat, BUTTONS.changePersonality, BUTTONS.imageSettings],
+    );
 });
 
 test("private access replies explain how to contact the owner and self-host", async () => {
@@ -199,39 +164,6 @@ test("private access callbacks show an alert and send the full message", async (
         },
     ]);
     assert.deepEqual(ctx.replies, [PRIVATE_ACCESS_MESSAGE]);
-});
-
-test("the owner can complete a pending memory edit", async () => {
-    const chatId = `test-authorized-${process.pid}`;
-    const ownerId = 1001;
-    const memoryId = "memory-test";
-    const memoryService = getMemoryService(chatId);
-    const chatFolder = path.join("chat_memory", String(chatId));
-
-    await memoryService.saveLongTermMemory([
-        {
-            id: memoryId,
-            content: "Before",
-            category: "other",
-            importance: 0.8,
-            status: "active",
-            createdAt: "2026-01-01T00:00:00.000Z",
-        },
-    ]);
-    setPendingMemoryEdit(chatId, ownerId, memoryId);
-
-    try {
-        const ctx = createContext(chatId, ownerId, "After");
-        await dispatchMessage(ctx);
-
-        const entries = await memoryService.loadLongTermMemory();
-        assert.equal(entries[0].content, "After");
-        assert.equal(getPendingMemoryEdit(chatId, ownerId), undefined);
-        assert.equal(ctx.replies[0], "✅ Memory entry updated.");
-    } finally {
-        deletePendingMemoryEdit(chatId, ownerId);
-        await fs.rm(chatFolder, { recursive: true, force: true });
-    }
 });
 
 test("a multiline user message keeps the user role", () => {
@@ -507,15 +439,16 @@ test("the session-memory analyzer receives only the latest exchange and its prom
 
 test("session continuity memory is supplied to every personality as ordered data", () => {
     const client = new AIClient();
-    const [systemMessage] = client.buildMessages(
-        "continue",
-        { prompt: "Roleplay this character." },
-        [],
-        "",
-        "[1] setting (user): The user is in the station.\n[2] event (assistant): The doors locked.",
-    );
+    for (const personality of Object.values(PERSONALITIES)) {
+        const [systemMessage] = client.buildMessages(
+            "continue",
+            personality,
+            [],
+            "[1] setting (user): The user is in the station.\n[2] event (assistant): The doors locked.",
+        );
 
-    assert.match(systemMessage.content, /Session continuity memory:/);
-    assert.match(systemMessage.content, /Later entries override earlier/);
-    assert.match(systemMessage.content, /\[1\].*\n\[2\]/s);
+        assert.match(systemMessage.content, /Session continuity memory:/);
+        assert.match(systemMessage.content, /Later entries override earlier/);
+        assert.match(systemMessage.content, /\[1\].*\n\[2\]/s);
+    }
 });

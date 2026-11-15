@@ -1,7 +1,6 @@
 /**
  * Memory module.
- * Manages chat sessions, personality state, short-term memory, and long-term
- * prompt memory.
+ * Manages chat sessions, personality state, transcripts, and continuity memory.
  */
 
 import fs from "fs/promises";
@@ -13,8 +12,6 @@ import {
     CHAT_MEMORY_DIR,
     DEFAULT_PERSONALITY,
 } from "../config/index.js";
-import { analyzeMessageImportance } from "./analyzer.js";
-import { getMemoryService } from "./memoryService.js";
 import {
     ensureSessionData,
     getSessionChatPath,
@@ -219,7 +216,7 @@ export function parseSessionHistory(
     return limit === 0 ? [] : normalized.slice(-limit);
 }
 
-export async function ensureMemoryDirectory() {
+export async function ensureChatDataDirectory() {
     await fs.mkdir(storageRoot, { recursive: true });
 }
 
@@ -228,89 +225,4 @@ export async function getSessionMemoryForPrompt(chatId, sessionId = null) {
     const targetSession = sessionId ?? meta.currentSession;
     await ensureChatSession(chatId, targetSession);
     return loadSessionMemoryForPrompt(chatId, targetSession);
-}
-
-export async function smartSaveMessage(chatId, role, message) {
-    if (!message || message.trim().length === 0) {
-        console.log("⏭️  Message skipped (empty or whitespace)");
-        return false;
-    }
-
-    if (role !== "user") {
-        console.log(`⏭️  Message skipped (role is not user: ${role})`);
-        return false;
-    }
-
-    const analysis = await analyzeMessageImportance(message, role);
-    if (!analysis.shouldSave) {
-        console.log("⏭️  Message skipped (not useful for memory)");
-        return false;
-    }
-
-    const memoryContent = analysis.memory ? analysis.memory.trim() : "";
-    if (!memoryContent) {
-        console.log("⚠️  Memory analyzer did not provide content.");
-        return false;
-    }
-
-    const memoryService = getMemoryService(chatId);
-    const added = await memoryService.addShortTermMemory({
-        content: memoryContent,
-        importance: analysis.importance,
-        category: analysis.category,
-        source: "chat",
-        ttlDays: analysis.ttlDays,
-        metadata: {
-            originalRole: role,
-        },
-    });
-
-    if (added) {
-        const truncated =
-            memoryContent.length > 80
-                ? `${memoryContent.slice(0, 80)}...`
-                : memoryContent;
-        console.log(
-            `✅ Short-term memory queued | importance: ${analysis.importance.toFixed(2)} | category: ${analysis.category} | content: ${truncated}`,
-        );
-    } else {
-        console.log("⚠️  Short-term memory not saved (duplicate or not added)");
-    }
-
-    return added;
-}
-
-export async function loadSmartMemory(chatId, _tags = [], limit = 20) {
-    const memoryService = getMemoryService(chatId);
-    return memoryService.getLongTermMemory(limit);
-}
-
-export async function getLongTermMemoryForPrompt(chatId, limit = 30) {
-    const memoryService = getMemoryService(chatId);
-    return memoryService.getLongTermMemoryForPrompt(limit);
-}
-
-export async function getMemoryStats(chatId) {
-    const memoryService = getMemoryService(chatId);
-    return memoryService.getLongTermStats();
-}
-
-export async function deleteMemoryEntry(chatId, memoryId) {
-    const memoryService = getMemoryService(chatId);
-    return memoryService.deleteLongTermMemory(memoryId);
-}
-
-export async function updateMemoryEntry(chatId, memoryId, newContent) {
-    const memoryService = getMemoryService(chatId);
-    return memoryService.updateLongTermMemory(memoryId, newContent);
-}
-
-export async function clearSmartMemory(chatId) {
-    const memoryService = getMemoryService(chatId);
-    await memoryService.clearLongTermMemory();
-}
-
-export async function exportSmartMemory(chatId) {
-    const memoryService = getMemoryService(chatId);
-    return memoryService.getLongTermMemory(1000);
 }

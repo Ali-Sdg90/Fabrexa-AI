@@ -100,7 +100,7 @@ export const OLLAMA_MODEL =
     process.env.AI_MODEL?.trim() ||
     process.env.MODEL?.trim() ||
     "llama3.1";
-// Chat, memory analysis, and scene direction intentionally share one text model.
+// Chat, session-memory analysis, and scene direction share one text model.
 export const OLLAMA_ANALYZER_MODEL = OLLAMA_MODEL;
 export const OLLAMA_KEEP_ALIVE = process.env.OLLAMA_KEEP_ALIVE?.trim() || "5m";
 export const OLLAMA_NUM_CTX = readNumber("OLLAMA_NUM_CTX", 8192);
@@ -140,7 +140,7 @@ export const IS_DEV_LOG_MODE = new Set([
     "verbose",
 ]).has(LOG_MODE);
 
-// Chat memory configuration
+// Chat session storage
 export const CHAT_MEMORY_DIR = "chat_memory";
 export const PERSONALITY_DIR = path.join("personalities", "prompts");
 export const PERSONALITY_APPEARANCE_DIR = path.join(
@@ -148,15 +148,6 @@ export const PERSONALITY_APPEARANCE_DIR = path.join(
     "appearances",
 );
 export const DEFAULT_PERSONALITY = "Friendly";
-const configuredMemoryPersonalities =
-    process.env.MEMORY_ENABLED_PERSONALITIES;
-export const MEMORY_ENABLED_PERSONALITIES =
-    configuredMemoryPersonalities === undefined
-        ? ["Friendly", "Vent Girl"]
-        : configuredMemoryPersonalities
-              .split(",")
-              .map((value) => value.trim())
-              .filter(Boolean);
 
 // Request configuration. Local models can be slower than hosted APIs.
 export const REQUEST_TIMEOUT = readNumber("REQUEST_TIMEOUT", 120000);
@@ -280,11 +271,6 @@ export const IMAGE_GENERATION_SETTINGS = Object.freeze({
     sampler: "LCM",
     scheduler: "Karras",
 });
-export const MEMORY_PROCESSOR_CRON =
-    process.env.MEMORY_PROCESSOR_CRON?.trim() || "0 0 * * *";
-export const MEMORY_PROCESSOR_TIMEZONE =
-    process.env.MEMORY_PROCESSOR_TIMEZONE?.trim() || "Asia/Tehran";
-
 export const PERSONALITY_INSTRUCTION =
     process.env.PERSONALITY_INSTRUCTION?.trim() ||
     "Follow the selected personality and always respond with a substantial, fully developed answer.";

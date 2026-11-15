@@ -26,7 +26,6 @@ Send me any message, question, idea, or late-night thought and I'll answer with 
 *Quick actions:*
 🆕 New Chat - fresh conversation
 ⚙️ Change Personality - switch personality
-📝 Show Memory - view saved memories
 🖼️ Image Settings - enable or disable the image made after each reply
 
 ${imageNote}

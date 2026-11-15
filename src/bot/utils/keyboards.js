@@ -7,7 +7,6 @@ import { PERSONALITIES } from "../../personalities/index.js";
 export const BUTTONS = {
     newChat: "🆕 New Chat",
     changePersonality: "⚙️ Change Personality",
-    showMemory: "📝 Show Memory",
     imageSettings: "🖼️ Image Settings",
 };
 
@@ -21,7 +20,6 @@ export const mainMenu = {
                     callback_data: "configure_personality",
                 },
             ],
-            [{ text: BUTTONS.showMemory, callback_data: "show_memory" }],
             [
                 {
                     text: BUTTONS.imageSettings,
@@ -37,7 +35,6 @@ export const quickKeyboard = {
         keyboard: [
             [{ text: BUTTONS.newChat }],
             [{ text: BUTTONS.changePersonality }],
-            [{ text: BUTTONS.showMemory }],
             [{ text: BUTTONS.imageSettings }],
         ],
         resize_keyboard: true,
@@ -57,29 +54,6 @@ export function buildPersonalityMenu() {
     return {
         reply_markup: {
             inline_keyboard: inline,
-        },
-    };
-}
-
-export function buildMemoryKeyboard(memoryEntries) {
-    const rows = memoryEntries.map((entry, idx) => [
-        {
-            text: `✏️ Edit ${idx + 1}`,
-            callback_data: `memory_edit_${entry.id}`,
-        },
-        {
-            text: `🗑️ Delete ${idx + 1}`,
-            callback_data: `memory_delete_${entry.id}`,
-        },
-    ]);
-
-    if (rows.length > 0) {
-        rows.push([{ text: "🔄 Refresh", callback_data: "show_memory" }]);
-    }
-
-    return {
-        reply_markup: {
-            inline_keyboard: rows,
         },
     };
 }

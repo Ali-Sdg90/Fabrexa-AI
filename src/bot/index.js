@@ -10,13 +10,9 @@ import {
     OLLAMA_MODEL,
     TELEGRAM_BOT_TOKEN,
 } from "../config/index.js";
-import { ensureMemoryDirectory } from "../memory/index.js";
-import { startMemoryProcessorScheduler } from "../memory/processor.js";
+import { ensureChatDataDirectory } from "../memory/index.js";
 import { initializeSessionMemoryAnalyzer } from "../memory/sessionMemory.js";
-import {
-    conversationQueue,
-    initializeImageRuntime,
-} from "../image/runtime.js";
+import { initializeImageRuntime } from "../image/runtime.js";
 import { registerCommandHandlers } from "./handlers/commands.js";
 import { registerActionHandlers } from "./handlers/actions.js";
 import { registerImageRegenerationHandler } from "./handlers/imageRegeneration.js";
@@ -57,12 +53,9 @@ export async function startBot() {
             process.exit(0);
         });
 
-        await ensureMemoryDirectory();
+        await ensureChatDataDirectory();
         await initializeSessionMemoryAnalyzer();
         await initializeImageRuntime();
-        startMemoryProcessorScheduler({
-            taskRunner: (task) => conversationQueue.add(task).promise,
-        });
 
         const tokenLength = TELEGRAM_BOT_TOKEN?.length || 0;
 

@@ -2,7 +2,7 @@
 
 > Fabrexa AI Ollama is a self-hosted Telegram bot for chatting with an LLM running through Ollama on your own computer.
 
-The project uses Telegram as the chat interface and Ollama for model inference. It includes four demo personalities, supports custom personality prompts, streams replies, keeps recent conversation context, and offers optional short-term and long-term memory. Telegram transports messages, while model inference and Fabrexa runtime files remain on the configured host machine.
+The project uses Telegram as the chat interface and Ollama for model inference. It includes four demo personalities, supports custom personality prompts, streams replies, and keeps ordered continuity memory inside every chat session. Telegram transports messages, while model inference and Fabrexa runtime files remain on the configured host machine.
 
 ## Project overview
 
