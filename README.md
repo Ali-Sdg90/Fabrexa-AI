@@ -83,8 +83,8 @@ After the reply and optional image pipeline are complete, background analysis ex
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/Ali-Sdg90/Fabrexa-AI-Ollama.git
-cd Fabrexa-AI-Ollama
+git clone https://github.com/Ali-Sdg90/Fabrexa-AI.git
+cd Fabrexa-AI
 npm install
 ```
 
@@ -254,7 +254,7 @@ scripts/             # Maintenance tools and optional Windows autostart helper
 
 ## Project website
 
-[Visit the live project website](https://ali-sdg.is-a.dev/Fabrexa-AI-Ollama/).
+[Visit the live project website](https://ali-sdg.is-a.dev/Fabrexa-AI/).
 
 The landing page is plain HTML, CSS, and JavaScript. Preview it locally with:
 

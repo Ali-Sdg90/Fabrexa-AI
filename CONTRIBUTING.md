@@ -11,8 +11,8 @@ Thanks for taking the time to improve Fabrexa AI.
 ## Development setup
 
 ```bash
-git clone https://github.com/Ali-Sdg90/Fabrexa-AI-Ollama.git
-cd Fabrexa-AI-Ollama
+git clone https://github.com/Ali-Sdg90/Fabrexa-AI.git
+cd Fabrexa-AI
 npm install
 cp .env.example .env
 ```

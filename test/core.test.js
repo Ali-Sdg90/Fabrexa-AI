@@ -144,7 +144,7 @@ test("private access replies explain how to contact the owner and self-host", as
     assert.match(ctx.replies[0], /@fabrexa_owner/);
     assert.match(
         ctx.replies[0],
-        /https:\/\/github\.com\/Ali-Sdg90\/Fabrexa-AI-Ollama/,
+        /https:\/\/github\.com\/Ali-Sdg90\/Fabrexa-AI/,
     );
 });
 

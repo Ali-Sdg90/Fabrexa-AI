@@ -28,8 +28,8 @@ Telegram carries messages, replies, and delivered photos between the user and bo
 ## Basic setup
 
 ```bash
-git clone https://github.com/Ali-Sdg90/Fabrexa-AI-Ollama.git
-cd Fabrexa-AI-Ollama
+git clone https://github.com/Ali-Sdg90/Fabrexa-AI.git
+cd Fabrexa-AI
 npm install
 ollama pull gemma3:12b
 ```
@@ -43,9 +43,9 @@ npm start
 
 ## Documentation
 
-- [Source and README](https://github.com/Ali-Sdg90/Fabrexa-AI-Ollama)
-- [Project guide](https://github.com/Ali-Sdg90/Fabrexa-AI-Ollama/blob/main/docs/PROJECT_GUIDE.md)
-- [Troubleshooting](https://github.com/Ali-Sdg90/Fabrexa-AI-Ollama/blob/main/docs/TROUBLESHOOTING.md)
+- [Source and README](https://github.com/Ali-Sdg90/Fabrexa-AI)
+- [Project guide](https://github.com/Ali-Sdg90/Fabrexa-AI/blob/main/docs/PROJECT_GUIDE.md)
+- [Troubleshooting](https://github.com/Ali-Sdg90/Fabrexa-AI/blob/main/docs/TROUBLESHOOTING.md)
 - [LLM-readable map](./llms.txt)
 
 Fabrexa AI was designed and developed by Ali Sadeghi and is licensed under the MIT License.

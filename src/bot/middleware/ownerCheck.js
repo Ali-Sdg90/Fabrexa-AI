@@ -9,7 +9,7 @@ import {
 } from "../../config/index.js";
 
 const PROJECT_REPOSITORY_URL =
-    "https://github.com/Ali-Sdg90/Fabrexa-AI-Ollama";
+    "https://github.com/Ali-Sdg90/Fabrexa-AI";
 
 export const PRIVATE_ACCESS_MESSAGE = `🔒 This bot is currently operating in private mode.
 
