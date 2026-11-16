@@ -224,12 +224,13 @@ The complete reference is in [`.env.example`](./.env.example) and [Project Guide
 npm start               # Start the bot
 npm run dev             # Start using Node's .env loader
 npm run check           # Run lint, tests, and the local setup check
+npm run check:ci        # Run the environment-independent CI checks
 npm run check:setup     # Check environment values and configured local model services
 npm run lint            # Run ESLint
 npm test                # Run the focused automated tests
 ```
 
-`npm run check` runs lint, the focused tests, and `npm run check:setup`. The setup check confirms that the local requirements, paired personality prompt/appearance files, environment values, Ollama server, selected text model, private ComfyUI checkpoint setting, workflow files, and ComfyUI queue are available. It does not contact Telegram to validate the bot token or run a real generation. A success message is printed only after every check passes.
+`npm run check:ci` runs lint and the focused tests without requiring local model services. GitHub Actions runs this command on pushes and pull requests targeting `main`. `npm run check` adds `npm run check:setup`, which confirms that the local requirements, paired personality prompt/appearance files, environment values, Ollama server, selected text model, private ComfyUI checkpoint setting, workflow files, and ComfyUI queue are available. It does not contact Telegram to validate the bot token or run a real generation. A success message is printed only after every check passes.
 
 ## Project structure
 

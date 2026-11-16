@@ -24,6 +24,7 @@
 
 html {
     scroll-behavior: smooth;
+    scroll-padding-top: 90px;
 }
 
 body {
@@ -100,7 +101,8 @@ code {
 }
 
 .site-header {
-    position: relative;
+    position: sticky;
+    top: 0;
     z-index: 20;
     border-bottom: 1px solid var(--line);
     background: rgba(11, 11, 16, 0.92);
@@ -334,7 +336,7 @@ code {
     margin: 0;
 }
 
-.hero-logo-frame {
+.hero-image-frame {
     padding: 12px;
     border: 1px solid var(--line-strong);
     border-radius: 24px;
@@ -342,10 +344,10 @@ code {
     box-shadow: 0 30px 80px rgba(0, 0, 0, 0.36);
 }
 
-.hero-logo-frame img {
+.hero-image-frame img {
+    display: block;
     width: 100%;
     height: auto;
-    aspect-ratio: 1;
     border-radius: 16px;
 }
 
@@ -1003,7 +1005,7 @@ code {
     }
 
     .code-block pre {
-        padding: 54px 16px 18px;
+        padding: 18px 72px 18px 16px;
         font-size: 0.7rem;
     }
 

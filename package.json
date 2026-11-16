@@ -7,7 +7,8 @@
     "scripts": {
         "start": "node bot.js",
         "dev": "node --env-file=.env bot.js",
-        "check": "npm run lint && npm test && npm run check:setup && node -e \"console.log('\\n✅ All checks passed.')\"",
+        "check": "npm run check:ci && npm run check:setup && node -e \"console.log('\\n✅ All checks passed.')\"",
+        "check:ci": "npm run lint && npm test",
         "check:setup": "node check-setup.js",
         "lint": "eslint bot.js \"src/**/*.js\" \"test/**/*.js\"",
         "test": "node --test"
