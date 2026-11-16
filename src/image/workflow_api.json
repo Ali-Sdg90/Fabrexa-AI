@@ -97,7 +97,7 @@
   "94": {
     "inputs": {
       "seed": 277681622265542,
-      "steps": 12,
+      "steps": 14,
       "cfg": 6,
       "sampler_name": "euler",
       "scheduler": "karras",

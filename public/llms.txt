@@ -1,8 +1,8 @@
-# Fabrexa AI Ollama
+# Fabrexa AI
 
-> Fabrexa AI Ollama is a self-hosted Telegram bot for local text generation through Ollama, optional local image generation through ComfyUI, and ordered continuity memory inside each chat session.
+> Fabrexa AI is a self-hosted Telegram bot for personality-driven replies through Ollama, continuity-aware images through ComfyUI, and ordered memory inside each chat session.
 
-The project uses Telegram as the chat interface, Ollama for text inference, and a configurable ComfyUI checkpoint for optional images. It includes four demo personalities, supports custom personality prompts, streams replies, and keeps ordered continuity memory inside every chat session. The host can use compact or larger compatible local models according to its hardware. Telegram transports messages and delivered media, while model execution and Fabrexa runtime files remain on the configured host machine.
+The project uses Telegram as the chat interface, Ollama for streamed replies and scene direction, and a configurable ComfyUI checkpoint for generated images. It includes four demo personalities, separate visual appearance references, per-account image controls, image regeneration, and ordered continuity memory inside every chat session. The host can use compact or larger compatible local models according to its hardware. Telegram transports messages and delivered media, while model execution and Fabrexa runtime files remain on the configured host machine.
 
 ## Project overview
 
@@ -19,5 +19,5 @@ The project uses Telegram as the chat interface, Ollama for text inference, and 
 ## Optional
 
 - [Hugging Face Ollama guide](https://huggingface.co/docs/hub/ollama): Running compatible GGUF models from Hugging Face with Ollama.
-- [Ollama](https://ollama.com/): Local model runtime used by Fabrexa AI Ollama.
-- [ComfyUI](https://github.com/comfyanonymous/ComfyUI): Optional local image-generation runtime used by Fabrexa AI Ollama.
+- [Ollama](https://ollama.com/): Local model runtime used by Fabrexa AI.
+- [ComfyUI](https://github.com/comfyanonymous/ComfyUI): Optional local image-generation runtime used by Fabrexa AI.

@@ -5,10 +5,10 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta
             name="description"
-            content="Self-hosted Telegram AI with local Ollama replies, optional ComfyUI images, custom personalities, and ordered memory for each chat session."
+            content="Self-hosted Telegram AI that streams personality-driven replies, remembers each session, and turns the latest scene into an image with Ollama and ComfyUI."
         />
         <meta name="author" content="Ali Sadeghi" />
-        <meta name="application-name" content="Fabrexa AI Ollama" />
+        <meta name="application-name" content="Fabrexa AI" />
         <meta name="robots" content="index, follow, max-image-preview:large" />
         <meta name="theme-color" content="#0b0b10" />
         <link
@@ -26,18 +26,18 @@
         />
         <meta
             property="og:title"
-            content="Fabrexa AI Ollama | Local AI Chat and Images"
+            content="Fabrexa AI | Conversations That Remember and Become Images"
         />
         <meta
             property="og:description"
-            content="Run local Ollama replies and optional ComfyUI images in Telegram, with custom personalities and ordered session memory."
+            content="Personality-driven Telegram conversations with session continuity and locally generated images."
         />
         <meta property="og:type" content="website" />
         <meta
             property="og:url"
             content="https://ali-sdg.is-a.dev/Fabrexa-AI-Ollama/"
         />
-        <meta property="og:site_name" content="Fabrexa AI Ollama" />
+        <meta property="og:site_name" content="Fabrexa AI" />
         <meta property="og:locale" content="en_US" />
         <meta
             property="og:image"
@@ -52,16 +52,16 @@
         <meta property="og:image:height" content="941" />
         <meta
             property="og:image:alt"
-            content="Fabrexa AI Ollama, local AI chat and image generation in Telegram"
+            content="Fabrexa AI, local AI chat and image generation in Telegram"
         />
         <meta name="twitter:card" content="summary_large_image" />
         <meta
             name="twitter:title"
-            content="Fabrexa AI Ollama | Local AI Chat and Images"
+            content="Fabrexa AI | Conversations That Remember and Become Images"
         />
         <meta
             name="twitter:description"
-            content="Run local Ollama replies and optional ComfyUI images in Telegram, with custom personalities and ordered session memory."
+            content="Personality-driven Telegram conversations with session continuity and locally generated images."
         />
         <meta
             name="twitter:image"
@@ -69,15 +69,15 @@
         />
         <meta
             name="twitter:image:alt"
-            content="Fabrexa AI Ollama, local AI chat and image generation in Telegram"
+            content="Fabrexa AI, local AI chat and image generation in Telegram"
         />
         <link rel="icon" href="images/project-logo.jpg" type="image/jpeg" />
         <script type="application/ld+json">
             {
                 "@context": "https://schema.org",
                 "@type": "SoftwareApplication",
-                "name": "Fabrexa AI Ollama",
-                "description": "A self-hosted Telegram bot for local Ollama replies, optional ComfyUI images, custom personalities, and ordered session memory.",
+                "name": "Fabrexa AI",
+                "description": "A self-hosted Telegram bot for personality-driven replies, session continuity, and locally generated images through Ollama and ComfyUI.",
                 "url": "https://ali-sdg.is-a.dev/Fabrexa-AI-Ollama/",
                 "image": "https://ali-sdg.is-a.dev/Fabrexa-AI-Ollama/images/og-image.jpg",
                 "codeRepository": "https://github.com/Ali-Sdg90/Fabrexa-AI-Ollama",
@@ -96,25 +96,23 @@
             document.documentElement.classList.add("js");
         </script>
         <link rel="stylesheet" href="styles.css" />
-        <title>Fabrexa AI Ollama | Local AI Chat and Images</title>
+        <title>
+            Fabrexa AI | Conversations That Remember and Become Images
+        </title>
     </head>
     <body>
         <a class="skip-link" href="#main-content">Skip to content</a>
 
         <header class="site-header">
             <div class="container nav-wrap">
-                <a
-                    class="brand"
-                    href="#top"
-                    aria-label="Fabrexa AI Ollama home"
-                >
+                <a class="brand" href="#top" aria-label="Fabrexa AI home">
                     <img
                         src="images/project-logo.jpg"
                         alt=""
                         width="1254"
                         height="1254"
                     />
-                    <span>Fabrexa AI Ollama</span>
+                    <span>Fabrexa AI</span>
                 </a>
 
                 <button
@@ -136,6 +134,7 @@
                     aria-label="Main navigation"
                 >
                     <a href="#overview">Overview</a>
+                    <a href="#showcase">In action</a>
                     <a href="#install">Install</a>
                     <a
                         class="github-link"
@@ -153,18 +152,20 @@
             <section class="hero" id="top">
                 <div class="container hero-grid">
                     <div class="hero-copy" data-reveal>
-                        <p class="section-label">Fabrexa AI Ollama</p>
-                        <h1>Local AI chat and images, in Telegram.</h1>
+                        <p class="section-label">Fabrexa AI</p>
+                        <h1>
+                            AI conversations that remember and become images.
+                        </h1>
                         <p class="hero-lead">
-                            Fabrexa connects Telegram to capable models running
-                            on your own computer. Ollama streams the reply,
-                            optional ComfyUI generation creates the scene, and
-                            each chat session keeps ordered continuity for
-                            later turns in that conversation.
+                            Fabrexa AI brings personality-driven conversations
+                            to Telegram, keeps each session coherent, and turns
+                            the latest moment into an image. Ollama and ComfyUI
+                            run on your machine while Telegram stays the
+                            interface.
                         </p>
                         <div class="hero-actions">
                             <a class="button button-primary" href="#install"
-                                >Set it up</a
+                                >Install Fabrexa</a
                             >
                             <a
                                 class="text-link"
@@ -172,7 +173,7 @@
                                 target="_blank"
                                 rel="noopener noreferrer"
                             >
-                                Browse the source
+                                Explore the source
                                 <span aria-hidden="true">↗</span>
                             </a>
                         </div>
@@ -195,7 +196,7 @@
                         <div class="hero-logo-frame">
                             <img
                                 src="images/project-logo.jpg"
-                                alt="Fabrexa AI Ollama logo"
+                                alt="Fabrexa AI logo"
                                 width="1254"
                                 height="1254"
                             />
@@ -206,56 +207,65 @@
 
             <section class="overview section" id="overview">
                 <div class="container narrow" data-reveal>
-                    <p class="section-label">What it does</p>
-                    <h2>A familiar chat interface for models you control.</h2>
                     <div class="overview-grid">
-                        <p class="overview-intro">
-                            Telegram is the interface. Ollama runs the text
-                            model, and ComfyUI optionally runs the image model.
-                            Fabrexa coordinates the conversation,
-                            personalities, and ordered session memory.
-                        </p>
+                        <div class="overview-copy">
+                            <p class="section-label">Why Fabrexa</p>
+                            <h2>
+                                The character, context, and image stay
+                                connected.
+                            </h2>
+                            <p class="overview-intro">
+                                A personality shapes the voice. Recent messages
+                                keep the exchange natural. Ordered session
+                                memory preserves important changes. When images
+                                are enabled, the same state guides what ComfyUI
+                                renders next.
+                            </p>
+                        </div>
                         <div class="plain-features">
                             <article>
-                                <h3>Local model</h3>
+                                <h3>Models you control</h3>
                                 <p>
-                                    Choose a compact everyday model or a larger,
-                                    more capable Ollama or GGUF model that fits
-                                    the RAM, VRAM, and compute on your machine.
+                                    Choose an Ollama-compatible language model
+                                    that fits your machine, including supported
+                                    GGUF releases from Hugging Face, then pair
+                                    it with the ComfyUI checkpoint you prefer
+                                    for images.
                                 </p>
                             </article>
                             <article>
-                                <h3>Live replies</h3>
+                                <h3>Replies that arrive live</h3>
                                 <p>
-                                    The Telegram message updates while the
-                                    answer is generated, so you do not have to
-                                    wait for the full response.
+                                    Fabrexa updates the Telegram message while
+                                    the model is responding instead of making
+                                    you wait for the complete answer.
                                 </p>
                             </article>
                             <article>
-                                <h3>Different personalities</h3>
+                                <h3>Characters with a visual identity</h3>
                                 <p>
                                     Friendly, Elara Voss, Sherlock Holmes, and
-                                    Vent Girl are included. Switch from Telegram
-                                    or add your own plain text prompt.
+                                    Vent Girl are included. Each personality can
+                                    pair its conversation prompt with a separate
+                                    appearance reference for consistent images.
                                 </p>
                             </article>
                             <article>
-                                <h3>Session continuity</h3>
+                                <h3>Memory for the current story</h3>
                                 <p>
-                                    Every personality keeps important story and
-                                    character state in the active session. A new
-                                    chat starts with fresh memory.
+                                    Important events, locations, relationships,
+                                    clothing, and object state stay ordered
+                                    inside the active session. A new chat begins
+                                    with fresh memory.
                                 </p>
                             </article>
                             <article>
-                                <h3>Local image generation</h3>
+                                <h3>Images grounded in the conversation</h3>
                                 <p>
-                                    When enabled, Fabrexa directs the latest
-                                    scene from the character appearance,
-                                    session state, and latest exchange, then
-                                    generates it through your local ComfyUI
-                                    checkpoint.
+                                    Fabrexa directs the next scene from the
+                                    character appearance, session state, and
+                                    latest exchange, then sends the local image
+                                    with its prompt and a Regenerate action.
                                 </p>
                             </article>
                         </div>
@@ -263,66 +273,143 @@
                 </div>
             </section>
 
+            <section class="showcase section" id="showcase">
+                <div class="container" data-reveal>
+                    <div class="showcase-heading">
+                        <div>
+                            <p class="section-label">A real turn</p>
+                            <h2>See the conversation become a scene.</h2>
+                        </div>
+                        <p>
+                            Text arrives first. Fabrexa then directs a visual
+                            from the character's appearance, the active session,
+                            and the latest exchange before delivering the local
+                            ComfyUI image to the same Telegram chat.
+                        </p>
+                    </div>
+
+                    <div class="showcase-grid">
+                        <figure class="showcase-card showcase-card-product">
+                            <a
+                                href="images/img1.full.webp"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label="Open the full Telegram generation example"
+                            >
+                                <img
+                                    src="images/img1.full.webp"
+                                    alt="A Fabrexa Telegram conversation with Elara Voss, followed by a generated rainy-library portrait, an expandable image direction, and a Regenerate button"
+                                    width="739"
+                                    height="1500"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                            </a>
+                            <figcaption>
+                                <strong>From reply to generated image</strong>
+                                <span
+                                    >A streamed response, rendered scene,
+                                    expandable direction, and Regenerate
+                                    action.</span
+                                >
+                            </figcaption>
+                        </figure>
+
+                        <figure class="showcase-card showcase-card-flow">
+                            <a
+                                href="images/img2.full.webp"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label="Open the full Fabrexa processing diagram"
+                            >
+                                <img
+                                    src="images/img2.full.webp"
+                                    alt="Fabrexa end-to-end flow from Telegram input through Ollama text generation, optional ComfyUI image generation, and session-memory update"
+                                    width="856"
+                                    height="1211"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                            </a>
+                            <figcaption>
+                                <strong>One ordered processing flow</strong>
+                                <span
+                                    >Request preparation, streaming, model
+                                    handoff, image delivery, cleanup, and
+                                    memory.</span
+                                >
+                            </figcaption>
+                        </figure>
+                    </div>
+                </div>
+            </section>
+
             <section class="how-it-works section">
                 <div class="container narrow" data-reveal>
                     <p class="section-label">How it works</p>
-                    <h2>Five stages, one local-first loop.</h2>
+                    <h2>From message to memory, in one ordered flow.</h2>
                     <ol class="process">
                         <li>
                             <span>01</span>
                             <div>
-                                <h3>You send a Telegram message</h3>
-                                <p>No separate web interface is required.</p>
+                                <h3>A message starts the turn</h3>
+                                <p>
+                                    Telegram provides the familiar interface;
+                                    Fabrexa receives the request on your host.
+                                </p>
                             </div>
                         </li>
                         <li>
                             <span>02</span>
                             <div>
-                                <h3>Fabrexa prepares the context</h3>
+                                <h3>Fabrexa rebuilds the context</h3>
                                 <p>
-                                    It adds the active personality, recent chat,
-                                    and bounded session continuity memory.
+                                    It combines the active personality, recent
+                                    messages, and relevant ordered memory from
+                                    the current session.
                                 </p>
                             </div>
                         </li>
                         <li>
                             <span>03</span>
                             <div>
-                                <h3>Ollama runs the model</h3>
+                                <h3>The character replies live</h3>
                                 <p>
-                                    The configured model generates the answer on
-                                    your machine.
+                                    Ollama generates the response on your
+                                    machine while Fabrexa streams it into the
+                                    Telegram message.
                                 </p>
                             </div>
                         </li>
                         <li>
                             <span>04</span>
                             <div>
-                                <h3>The reply streams to Telegram</h3>
+                                <h3>The latest moment becomes an image</h3>
                                 <p>
-                                    Fabrexa updates the message as new text
-                                    arrives.
+                                    If images are enabled, Fabrexa directs the
+                                    scene, hands the GPU to ComfyUI, and sends
+                                    the result back to Telegram.
                                 </p>
                             </div>
                         </li>
                         <li>
                             <span>05</span>
                             <div>
-                                <h3>Images and continuity follow the reply</h3>
+                                <h3>The session carries the result forward</h3>
                                 <p>
-                                    If images are enabled, ComfyUI creates and
-                                    sends the scene locally. After delivery and
-                                    cleanup, Ollama records important changes
-                                    in ordered memory for the next turn.
+                                    After delivery and model cleanup, important
+                                    developments from the exchange are added to
+                                    ordered memory for later replies and images.
                                 </p>
                             </div>
                         </li>
                     </ol>
                     <p class="privacy-note">
-                        <strong>A useful distinction:</strong> model inference
-                        is local, but your messages still travel through
-                        Telegram. Fabrexa is local-first, not an offline
-                        messenger.
+                        <strong>What stays local:</strong> model inference,
+                        generated images, personality files, and session data
+                        remain on the host machine. Telegram still transports
+                        messages and delivered media, so Fabrexa is local-first
+                        rather than offline.
                     </p>
                 </div>
             </section>
@@ -330,10 +417,12 @@
             <section class="install section" id="install">
                 <div class="container install-grid">
                     <div class="install-intro" data-reveal>
-                        <p class="section-label">Installation</p>
-                        <h2>Run Fabrexa on your own machine.</h2>
+                        <p class="section-label">Self-host it</p>
+                        <h2>Run the full stack on your own machine.</h2>
                         <p>
-                            Before you begin, install
+                            Fabrexa is self-hosted. You choose the text model,
+                            image checkpoint, and Telegram bot that make up your
+                            instance. Before you begin, install
                             <a
                                 href="https://nodejs.org/"
                                 target="_blank"
@@ -353,8 +442,7 @@
                                 rel="noopener noreferrer"
                                 >ComfyUI</a
                             >
-                            if you want local image generation, then create a
-                            bot with
+                            for image generation, then create a bot with
                             <a
                                 href="https://t.me/botfather"
                                 target="_blank"
@@ -363,10 +451,10 @@
                             >.
                         </p>
                         <p>
-                            The example setup uses <code>gemma3:12b</code>. You
-                            can also use a compatible GGUF model from Hugging
-                            Face and choose a separate local ComfyUI checkpoint
-                            for images.
+                            The example uses <code>gemma3:12b</code>, but the
+                            runtime is not tied to it. You can use a compatible
+                            GGUF model from Hugging Face and select a separate
+                            ComfyUI checkpoint for the visual style you want.
                         </p>
                     </div>
 
@@ -378,9 +466,7 @@
                         <li class="install-step">
                             <div class="step-title">
                                 <span>1</span>
-                                <h3>
-                                    Clone the project and install dependencies
-                                </h3>
+                                <h3>Get Fabrexa and install dependencies</h3>
                             </div>
                             <div class="code-block">
                                 <button
@@ -401,14 +487,14 @@ npm install</code></pre>
                         <li class="install-step">
                             <div class="step-title">
                                 <span>2</span>
-                                <h3>Download a model</h3>
+                                <h3>Choose a text model</h3>
                             </div>
                             <div class="model-options">
                                 <div class="model-option">
-                                    <h4>Use the default Ollama model</h4>
+                                    <h4>Start with the example model</h4>
                                     <p>
-                                        The simplest route is the model already
-                                        used by the example configuration.
+                                        The quickest route is the model used by
+                                        the included example configuration.
                                     </p>
                                     <div class="code-block">
                                         <button
@@ -426,8 +512,7 @@ npm install</code></pre>
 
                                 <div class="model-option hugging-face-option">
                                     <h4>
-                                        Or download a GGUF model from Hugging
-                                        Face
+                                        Or bring a GGUF model from Hugging Face
                                     </h4>
                                     <p>
                                         Find an instruction or chat model with
@@ -455,12 +540,11 @@ npm install</code></pre>
                                         ><code>ollama run hf.co/&lt;publisher&gt;/&lt;model&gt;-GGUF:Q4_K_M</code></pre>
                                     </div>
                                     <p class="small-copy">
-                                        The quantization suffix is optional. If
-                                        the repository provides
-                                        <code>Q4_K_M</code>, Ollama normally
-                                        selects it by default. Keep the exact
-                                        model reference; you will use it in
-                                        <code>.env</code>.
+                                        Model names and available quantizations
+                                        vary by repository. Use the exact Ollama
+                                        command shown on the model's Hugging
+                                        Face page, then keep that same model
+                                        reference for <code>.env</code>.
                                     </p>
                                 </div>
                             </div>
@@ -469,7 +553,7 @@ npm install</code></pre>
                         <li class="install-step">
                             <div class="step-title">
                                 <span>3</span>
-                                <h3>Create and edit your environment file</h3>
+                                <h3>Connect Telegram and image generation</h3>
                             </div>
                             <p>
                                 Copy <code>.env.example</code> to
@@ -513,7 +597,7 @@ COMFYUI_CHECKPOINT_NAME=your-local-checkpoint-file.safetensors</code></pre>
                         <li class="install-step">
                             <div class="step-title">
                                 <span>4</span>
-                                <h3>Check the setup and start the bot</h3>
+                                <h3>Validate the setup and launch</h3>
                             </div>
                             <div class="code-block">
                                 <button
@@ -527,9 +611,9 @@ COMFYUI_CHECKPOINT_NAME=your-local-checkpoint-file.safetensors</code></pre>
 npm start</code></pre>
                             </div>
                             <p>
-                                Open your bot in Telegram, send
-                                <code>/start</code>, and then send a normal
-                                message.
+                                When the checks pass, open your bot in Telegram,
+                                send <code>/start</code>, choose a personality,
+                                and begin the conversation.
                             </p>
                         </li>
                     </ol>
@@ -556,11 +640,12 @@ npm start</code></pre>
                         loading="lazy"
                     />
                     <div>
-                        <h2>Use it as it is, or make it your own.</h2>
+                        <h2>Start with the defaults. Shape everything else.</h2>
                         <p>
-                            Choose the local text model, local image checkpoint,
-                            personalities, and session behavior that fit your
-                            machine and the experience you want to build.
+                            Keep the included personalities or create your own.
+                            Change the conversation prompt, visual appearance,
+                            text model, image checkpoint, and memory settings to
+                            fit the experience you want to build.
                         </p>
                     </div>
                     <a
@@ -569,7 +654,7 @@ npm start</code></pre>
                         target="_blank"
                         rel="noopener noreferrer"
                     >
-                        View on GitHub
+                        Explore the project
                     </a>
                 </div>
             </section>
@@ -577,7 +662,7 @@ npm start</code></pre>
 
         <footer class="site-footer">
             <div class="container footer-wrap">
-                <p>Fabrexa AI Ollama</p>
+                <p>Fabrexa AI</p>
                 <p>
                     Designed and developed by
                     <a

@@ -1,6 +1,6 @@
 {
     "name": "fabrexa-ai",
-    "version": "3.3.0",
+    "version": "3.4.0",
     "description": "Self-hosted Telegram AI with local Ollama replies, ComfyUI images, and session memory",
     "main": "bot.js",
     "type": "module",

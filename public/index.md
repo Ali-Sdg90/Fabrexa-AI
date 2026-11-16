@@ -1,16 +1,16 @@
-# Fabrexa AI Ollama
+# Fabrexa AI
 
-Fabrexa AI Ollama is a self-hosted Telegram bot that runs text generation through Ollama and optional image generation through ComfyUI on your own machine.
+**AI conversations that remember and become images.**
+
+Fabrexa AI is a self-hosted Telegram bot for personality-driven conversations, session continuity, and locally generated images. Ollama streams the character's reply, ComfyUI renders the latest scene when images are enabled, and ordered memory carries important state into later turns.
 
 ## What it does
 
-- Uses Telegram as the chat interface
-- Runs the configured text model locally through Ollama
-- Generates optional images locally through a configured ComfyUI checkpoint
-- Streams generated replies into the Telegram conversation
-- Includes four demo personalities and loads custom ones from local text files
-- Keeps recent conversation context
-- Keeps ordered continuity memory inside every chat session
+- Streams personality-driven replies into the Telegram conversation
+- Pairs character prompts with separate visual appearance references
+- Generates conversation-aware images through a local ComfyUI checkpoint
+- Keeps recent conversation context and ordered continuity memory inside each session
+- Includes four ready-to-use personalities and supports custom ones
 - Supports compact or larger, more capable local models according to the host hardware
 - Provides private owner-only access by default
 
@@ -48,4 +48,4 @@ npm start
 - [Troubleshooting](https://github.com/Ali-Sdg90/Fabrexa-AI-Ollama/blob/main/docs/TROUBLESHOOTING.md)
 - [LLM-readable map](./llms.txt)
 
-Fabrexa AI Ollama was designed and developed by Ali Sadeghi and is licensed under the MIT License.
+Fabrexa AI was designed and developed by Ali Sadeghi and is licensed under the MIT License.

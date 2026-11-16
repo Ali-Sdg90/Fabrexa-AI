@@ -1,6 +1,6 @@
-# Fabrexa AI Ollama
+# Fabrexa AI
 
-<img src="./public/images/og-image.jpg" alt="Fabrexa AI Ollama" width="100%" />
+<img src="./public/images/og-image.jpg" alt="Fabrexa AI" width="100%" />
 
 Fabrexa is a self-hosted Telegram bot that runs text and image generation on your own machine. Ollama streams personality-driven replies, optional ComfyUI generation turns the latest scene into an image, and ordered session memory carries important developments into later turns of the same conversation.
 
@@ -9,6 +9,7 @@ You can choose a compact model for everyday hardware or a larger, more capable G
 [![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![Ollama](https://img.shields.io/badge/Ollama-local_models-111111)](https://ollama.com/)
 [![Telegram](https://img.shields.io/badge/Telegram-bot-26A5E4?logo=telegram&logoColor=white)](https://telegram.org/)
+[![Version](https://img.shields.io/badge/version-3.4.0-9b78d0)](./package.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-6f42c1.svg)](./LICENSE)
 
 ## What it does
@@ -25,7 +26,23 @@ You can choose a compact model for everyday hardware or a larger, more capable G
 
 Telegram still carries messages and delivered photos between you and the bot. Text inference, image generation, and Fabrexa's conversation files stay on the machine running the project.
 
+## See it in action
+
+<p align="center">
+  <a href="./public/images/img1.full.webp">
+    <img src="./public/images/img1.full.webp" alt="Fabrexa streaming an Elara Voss reply, generating the scene locally, showing the saved image direction, and offering a Regenerate action in Telegram" width="440" />
+  </a>
+</p>
+
+One Telegram turn can produce both the personality-driven reply and its continuity-aware scene. Fabrexa sends the text first, builds the image direction from the character appearance, session state, and latest exchange, then delivers the ComfyUI result with the saved prompt and a **Regenerate** button.
+
 ## How it works
+
+<p align="center">
+  <a href="./public/images/img2.full.webp">
+    <img src="./public/images/img2.full.webp" alt="Fabrexa end-to-end processing flow for Telegram input, Ollama text generation, ComfyUI image generation, and session-memory updates" width="720" />
+  </a>
+</p>
 
 ```text
 Telegram
