@@ -109,7 +109,7 @@ export class ImagePipeline {
         this.textModelReady = false;
 
         let primaryError = null;
-        let imageDelivered = false;
+        let imageDeliveryStarted = false;
         let result;
         try {
             phaseStartedAt = this.now();
@@ -126,15 +126,15 @@ export class ImagePipeline {
             phaseStartedAt = this.now();
             await onImageReady({ ...result, scenePrompt });
             timings.imageDeliveryMs = this.now() - phaseStartedAt;
-            imageDelivered = true;
+            imageDeliveryStarted = true;
         } catch (error) {
             primaryError = error;
         }
 
         let recoveryError = null;
         try {
-            // This intentionally runs after Telegram delivery: the image model
-            // is unloaded first, then the same text model is preloaded again.
+            // This runs after the generated image has been handed to the
+            // delivery callback. Telegram upload may continue independently.
             phaseStartedAt = this.now();
             await this.comfyUIService.releaseModelsForTextInference();
             timings.imageModelUnloadMs = this.now() - phaseStartedAt;
@@ -151,13 +151,13 @@ export class ImagePipeline {
         timings.totalMs = this.now() - pipelineStartedAt;
         const frozenTimings = Object.freeze(timings);
         if (primaryError) {
-            primaryError.imageDelivered = imageDelivered;
+            primaryError.imageDeliveryStarted = imageDeliveryStarted;
             primaryError.pipelineTimings = frozenTimings;
             if (recoveryError) primaryError.recoveryError = recoveryError;
             throw primaryError;
         }
         if (recoveryError) {
-            recoveryError.imageDelivered = imageDelivered;
+            recoveryError.imageDeliveryStarted = imageDeliveryStarted;
             recoveryError.pipelineTimings = frozenTimings;
             throw recoveryError;
         }

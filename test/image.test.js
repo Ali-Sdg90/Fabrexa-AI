@@ -22,6 +22,9 @@ const { ImagePipeline } = await import("../src/image/pipeline.js");
 const { registerImageRegenerationHandler } = await import(
     "../src/bot/handlers/imageRegeneration.js"
 );
+const { startAutomaticPhotoUpload } = await import(
+    "../src/bot/handlers/messages.js"
+);
 const { ImagePreferenceService } = await import(
     "../src/image/preferences.js"
 );
@@ -227,6 +230,51 @@ test("regenerate keyboard stores only a compact prompt reference", () => {
     assert.ok(button.callback_data.length <= 64);
 });
 
+test("automatic Telegram photo upload starts without blocking model cleanup", async () => {
+    const events = [];
+    let finishUpload;
+    const uploadPending = new Promise((resolve) => {
+        finishUpload = resolve;
+    });
+    const promptId = "12345678-1234-4234-8234-123456789abc";
+    const ctx = {
+        sendChatAction(action) {
+            events.push(`action:${action}`);
+            return Promise.resolve();
+        },
+        replyWithPhoto() {
+            events.push("upload-started");
+            return uploadPending;
+        },
+        async deleteMessage(messageId) {
+            events.push(`delete:${messageId}`);
+        },
+    };
+
+    const outcomePromise = startAutomaticPhotoUpload({
+        ctx,
+        buffer: Buffer.from("image"),
+        caption: "caption",
+        regenerationPromptId: promptId,
+        imageStatusMessageId: 99,
+        now: () => 1234,
+    });
+    events.push("model-cleanup-can-continue");
+
+    assert.deepEqual(events, [
+        "action:upload_photo",
+        "upload-started",
+        "delete:99",
+        "model-cleanup-can-continue",
+    ]);
+
+    finishUpload();
+    assert.deepEqual(await outcomePromise, {
+        ok: true,
+        photoDeliveredAt: 1234,
+    });
+});
+
 test("long scene prompts stay intact for generation and use a safe caption preview", () => {
     const scenePrompt = `woman < rain & neon > ${"detailed scene ".repeat(200)}`;
     const normalizedPrompt = normalizeScenePrompt(scenePrompt);
@@ -320,7 +368,7 @@ test("per-account image preference defaults on and persists scene direction", as
     }
 });
 
-test("image pipeline preserves the required model handoff order", async () => {
+test("image pipeline restores the text model after upload is handed off", async () => {
     const events = [];
     const pipeline = new ImagePipeline({
         aiClient: {

@@ -174,6 +174,43 @@ async function sendFinalResponse(ctx, processingMessage, response) {
     }
 }
 
+export function startAutomaticPhotoUpload({
+    ctx,
+    buffer,
+    caption,
+    regenerationPromptId,
+    imageStatusMessageId,
+    now = Date.now,
+}) {
+    try {
+        const chatAction = ctx.sendChatAction("upload_photo");
+        void Promise.resolve(chatAction).catch(() => undefined);
+    } catch {}
+
+    // Telegram upload is network-bound. Start it immediately, then let model
+    // cleanup and session-memory work continue without waiting for Telegram.
+    let uploadPromise;
+    try {
+        uploadPromise = ctx.replyWithPhoto(
+            { source: buffer },
+            {
+                caption,
+                parse_mode: "HTML",
+                ...buildRegenerateImageKeyboard(regenerationPromptId),
+            },
+        );
+    } catch (error) {
+        uploadPromise = Promise.reject(error);
+    }
+
+    void deleteMessageSafely(ctx, imageStatusMessageId);
+
+    return Promise.resolve(uploadPromise).then(
+        () => ({ ok: true, photoDeliveredAt: now() }),
+        (error) => ({ ok: false, error }),
+    );
+}
+
 async function sendAutomaticImage(
     ctx,
     response,
@@ -187,7 +224,7 @@ async function sendAutomaticImage(
     let imageStatusMessage = null;
     let caption = "";
     let regenerationPromptId = null;
-    let photoDeliveredAt = null;
+    let uploadOutcomePromise = null;
 
     try {
         const result = await imagePipeline.run({
@@ -214,35 +251,30 @@ async function sendAutomaticImage(
             onGenerationStart: async () => {
                 imageStatusMessage = await ctx.reply(IMAGE_BUILDING_MESSAGE);
             },
-            onImageReady: async ({ buffer }) => {
-                try {
-                    await ctx.sendChatAction("upload_photo");
-                } catch {}
-                await deleteMessageSafely(
+            onImageReady: ({ buffer }) => {
+                uploadOutcomePromise = startAutomaticPhotoUpload({
                     ctx,
-                    imageStatusMessage?.message_id,
-                );
-                await ctx.replyWithPhoto(
-                    { source: buffer },
-                    {
-                        caption,
-                        parse_mode: "HTML",
-                        ...buildRegenerateImageKeyboard(regenerationPromptId),
-                    },
-                );
-                photoDeliveredAt = Date.now();
+                    buffer,
+                    caption,
+                    regenerationPromptId,
+                    imageStatusMessageId: imageStatusMessage?.message_id,
+                });
             },
         });
-        console.log(`✅ Sent automatic image to ${username} (${userId})`);
-        return { ...result, photoDeliveredAt };
+        return {
+            ...result,
+            uploadOutcomePromise,
+            pipelineCompletedAt: Date.now(),
+        };
     } catch (error) {
         console.error(
             `❌ Automatic image failed for ${username} (${userId}): ${error.message}`,
         );
-        if (error.imageDelivered) {
+        if (error.imageDeliveryStarted) {
             return {
                 timings: error.pipelineTimings,
-                photoDeliveredAt,
+                uploadOutcomePromise,
+                pipelineCompletedAt: Date.now(),
                 recoveryFailed: true,
             };
         }
@@ -259,6 +291,38 @@ async function sendAutomaticImage(
         await ctx.reply(message);
         return null;
     }
+}
+
+async function finalizeAutomaticPhotoUpload({
+    ctx,
+    imageResult,
+    username,
+    userId,
+    chatId,
+    sessionId,
+    messageTimings,
+    receivedAt,
+}) {
+    const outcome = await imageResult.uploadOutcomePromise;
+    if (!outcome.ok) {
+        console.error(
+            `❌ Automatic image upload failed for ${username} (${userId}): ${outcome.error.message}`,
+        );
+        await ctx.reply(imageGenerationErrorMessage(outcome.error));
+        return;
+    }
+
+    console.log(`✅ Sent automatic image to ${username} (${userId})`);
+    await logPipelineTimings({
+        chatId,
+        sessionId,
+        username,
+        userId,
+        messageTimings,
+        imageTimings: imageResult.timings,
+        totalToPhotoMs: outcome.photoDeliveredAt - receivedAt,
+        totalWithCleanupMs: imageResult.pipelineCompletedAt - receivedAt,
+    });
 }
 
 async function processConversation({
@@ -357,8 +421,9 @@ async function processConversation({
     messageTimings.textDeliveryMs = Date.now() - phaseStartedAt;
     console.log(`✅ Sent response to ${username} (${userId})`);
 
+    let imageResult = null;
     if (imageEnabled) {
-        const imageResult = await sendAutomaticImage(
+        imageResult = await sendAutomaticImage(
             ctx,
             response,
             userMessage,
@@ -368,18 +433,6 @@ async function processConversation({
             userId,
             sessionId,
         );
-        if (imageResult?.photoDeliveredAt) {
-            await logPipelineTimings({
-                chatId: ctx.chat.id,
-                sessionId,
-                username,
-                userId,
-                messageTimings,
-                imageTimings: imageResult.timings,
-                totalToPhotoMs: imageResult.photoDeliveredAt - receivedAt,
-                totalWithCleanupMs: Date.now() - receivedAt,
-            });
-        }
     }
 
     scheduleSessionMemoryAnalysis({
@@ -388,6 +441,23 @@ async function processConversation({
         userMessage,
         assistantMessage: response,
     });
+
+    if (imageResult?.uploadOutcomePromise) {
+        void finalizeAutomaticPhotoUpload({
+            ctx,
+            imageResult,
+            username,
+            userId,
+            chatId: ctx.chat.id,
+            sessionId,
+            messageTimings,
+            receivedAt,
+        }).catch((error) => {
+            console.error(
+                `Automatic image upload finalization failed for chat ${ctx.chat.id}: ${error.message}`,
+            );
+        });
+    }
 }
 
 function scheduleSessionMemoryAnalysis({
